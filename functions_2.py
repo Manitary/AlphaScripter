@@ -868,8 +868,15 @@ class Goal:
 class Fact:
     fact_name: str
     is_not: int
-    params: dict[str, str | int]
+    parameters: dict[str, str | int]
     and_or: str
+
+
+@dataclass
+class Action:
+    action_name: str
+    parameters: dict[str, str | int]
+    strategic_numbers: dict[str, str | int]
 
 
 def generate_goal() -> Goal:
@@ -982,37 +989,21 @@ def generate_fact() -> Fact:
     return Fact(fact_name, is_not, params, and_or)
 
 
-def generate_action():
+def generate_action() -> Action:
     action_name = random.choice(action_list)
-    params = generate_parameters()
+    parameters = generate_parameters()
     strategic_numbers = generate_sn_values()
-
-    action = [action_name, params, strategic_numbers]
-    # if action_name == 'train':
-    #    print("train!")
-
-    return action
+    return Action(action_name, parameters, strategic_numbers)
 
 
-def mutate_fact(fact, mutation_chance):
-    fact_name = fact[0]
-    is_not = fact[1]
-    params = fact[2].copy()
-    and_or = fact[3]
-
+def mutate_fact(fact: Fact, mutation_chance: float) -> Fact:
     if random.random() < mutation_chance:
-        fact_name = random.choice(fact_list)
-
+        fact.fact_name = random.choice(fact_list)
     if random.random() < mutation_chance:
-        is_not = random.randint(0, 1)
-
-    params = mutate_parameters(params, mutation_chance)
-
+        fact.is_not = random.randint(0, 1)
+    fact.parameters = mutate_parameters(fact.parameters, mutation_chance)
     if random.random() < mutation_chance:
-        and_or = random.choice(["and", "or", "nand", "nor"])
-
-    fact = [fact_name, is_not, params, and_or]
-
+        fact.and_or = random.choice(["and", "or", "nand", "nor"])
     return fact
 
 
