@@ -1,5 +1,6 @@
 import copy
 import json
+from operator import is_not
 import random
 from dataclasses import dataclass
 from typing import Literal
@@ -836,7 +837,7 @@ class GoalFact:
     def __str__(self) -> str:
         return (
             f"{self.fact_name} "
-            f"{''.join(tuple(str(self.parameters[x]) for x in FACTS[self.fact_name]))}"
+            f"{' '.join(tuple(str(self.parameters[x]) for x in FACTS[self.fact_name]))}"
         )
 
 
@@ -871,12 +872,30 @@ class Fact:
     parameters: dict[str, str | int]
     and_or: str
 
+    def __str__(self) -> str:
+        return (
+            f"{self.fact_name} "
+            f"{' '.join(tuple(str(self.parameters[x]) for x in FACTS[self.fact_name]))}"
+        )
+
 
 @dataclass
 class Action:
     action_name: str
     parameters: dict[str, str | int]
     strategic_numbers: dict[str, str | int]
+
+    def __str__(self) -> str:
+        if self.action_name == "set-strategic-number":
+            return (
+                f"{self.action_name}"
+                f" {self.parameters[ACTIONS[self.action_name][1]]}"
+                f" {self.strategic_numbers[str(self.parameters[ACTIONS[self.action_name][1]])]}"
+            )
+        return (
+            f"{self.action_name} "
+            f"{' '.join(tuple(str(self.parameters[x]) for x in ACTIONS[self.action_name]))}"
+        )
 
 
 @dataclass
@@ -886,6 +905,35 @@ class Rule:
     age_required: list[str]
     local_facts: list[Fact]
     local_actions: list[Action]
+
+    def __str__(self) -> str:
+        ans = f"\n(defrule{self.write_facts()}\n=>{self.write_actions()})\n"
+        if len(ans.split()) > 20:
+            ans = ""
+        return ans
+
+    def write_facts(self) -> str:
+        pad = "...."
+        ans = pad
+        for i, fact in enumerate(self.local_facts):
+            if i >= self.fact_length:
+                break
+            ans += "\n"
+            ans += pad * i
+            if i < self.fact_length - 1:
+                ans += f"{pad}({fact.and_or} "
+            if fact.is_not:
+                ans += "(not "
+            ans += f"({fact})"
+            if i == self.fact_length - 1:
+                ans += "\n"
+                ans += ")" * i
+            if fact.is_not:
+                ans += ")"
+        return ans
+
+    def write_actions(self) -> str:
+        return "....\n" + "\n".join(f"({action})" for action in self.local_actions)
 
 
 def generate_goal() -> Goal:
@@ -1432,137 +1480,6 @@ def crossover(ai_one, ai_two, mutation_chance):
             out7.append(random.choice(ai_one[6]))
 
     return [out1, out2, out3, out4, out5, out6, out7]
-
-
-def write_fact(local_facts, fact_length):
-    string = "    "
-
-    for i in range(fact_length):
-        fact = local_facts[i]
-        fact_name = fact[0]
-        is_not = fact[1]
-        params = fact[2]
-        and_or = fact[3]
-
-        string += "\n"
-
-        if i < fact_length - 1:
-            for l in range(i):
-                string += "    "
-            string += "    (" + and_or + " "
-
-            if is_not == 1:
-                string += "(not "
-
-            string += (
-                " ("
-                + fact_name
-                + " "
-                + str(params[FACTS[fact_name][1]])
-                + " "
-                + str(params[FACTS[fact_name][2]])
-                + " "
-                + str(params[FACTS[fact_name][3]])
-                + " "
-                + str(params[FACTS[fact_name][4]])
-                + ")"
-            )
-
-        else:
-            for i in range(fact_length):
-                string += "    "
-
-            if is_not == 1:
-                string += "(not "
-            string += (
-                "("
-                + fact_name
-                + " "
-                + str(params[FACTS[fact_name][1]])
-                + " "
-                + str(params[FACTS[fact_name][2]])
-                + " "
-                + str(params[FACTS[fact_name][3]])
-                + " "
-                + str(params[FACTS[fact_name][4]])
-                + ")\n"
-            )
-
-            for i in range(fact_length - 1):
-                string += ")"
-
-        if is_not == 1:
-            string += ")"
-
-    return string
-
-
-def write_action(local_actions, action_length):
-    string = "    "
-
-    for i in range(action_length):
-        action = local_actions[i]
-        action_name = action[0]
-        params = action[1]
-        strategic_numbers = action[2]
-        # print(params)
-
-        if action_name != "set-strategic-number":
-            string += "\n"
-
-            string += (
-                " ("
-                + action_name
-                + " "
-                + str(params[ACTIONS[action_name][1]])
-                + " "
-                + str(params[ACTIONS[action_name][2]])
-                + " "
-                + str(params[ACTIONS[action_name][3]])
-                + " "
-                + str(params[ACTIONS[action_name][4]])
-                + ")"
-            )
-
-        else:
-            string += "\n"
-
-            string += (
-                " ("
-                + action_name
-                + " "
-                + str(params[ACTIONS[action_name][1]])
-                + " "
-                + str(strategic_numbers[params[ACTIONS[action_name][1]]])
-                + ")"
-            )
-
-    return string
-
-
-def write_rule(rule):
-    fact_length = rule[0]
-    action_length = rule[1]
-    age_required = rule[2]
-    local_facts = rule[3]
-    local_actions = rule[4]
-
-    string = ""
-    string += "\n"
-    string += "(defrule"
-    string += write_fact(local_facts, fact_length)
-    string += "\n=>"
-    string += write_action(local_actions, action_length)
-    string += ")\n"
-
-    check = string.split(" ")
-    while "" in check:
-        check.remove("")
-
-    if len(check) > 20:
-        string = ""
-
-    return string
 
 
 def write_ai(ai, ai_name):
