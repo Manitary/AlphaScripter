@@ -16,6 +16,7 @@ from globals import (
 )
 from models import Action, Fact, Goal, GoalFact, Rule, Simple
 from settings import *
+import settings
 
 if allow_towers:
     PARAMETERS["Buildable"] += ";watch-tower;guard-tower;keep"
@@ -612,7 +613,7 @@ def write_ai(ai, ai_name):
         f.write(str(ai[5][i]))
 
     for i in range(len(ai[0])):
-        c = write_simple(ai[0][i])
+        c = str(ai[0][i]) # ai[0][i] is a Simple object
         f.write(c)
 
     for i in range(len(ai[6])):
@@ -761,7 +762,11 @@ def generate_simple() -> Simple:
     params = generate_parameters()
     strategic_numbers = generate_sn_values()
     threshold = random.randint(0, 200)
-    if force_castle_age_units and params["Trainable"] != "villager" and type == "train":
+    if (
+        settings.force_castle_age_units
+        and params["Trainable"] != "villager"
+        and type == "train"
+    ):
         age_required = ["current-age  >= 3"]
     else:
         age_required = random.choice(
@@ -813,45 +818,36 @@ def generate_simple() -> Simple:
     )
 
 
-def mutate_simple(simple, mutation_chance):
-    type = simple[0]
-    params = copy.deepcopy(simple[1])
-    threshold = simple[2]
-    age_required = simple[3].copy()
-    requirement = simple[4]
-    requirement_count = simple[5]
-    gametime = simple[6]
-    strategic_numbers = simple[7]
-    if len(simple) > 8:
-        goal = simple[8]
-        use_goal = simple[9]
-    else:
-        goal = 1
-        use_goal = False
-
+def mutate_simple(simple: Simple, mutation_chance: float) -> Simple:
     if random.random() < mutation_chance:
         if allow_units:
-            type = random.choice(
+            simple.type = random.choice(
                 ["train", "research", "strategic_number", "build", "build-forward"]
             )
         else:
-            type = random.choice(
+            simple.type = random.choice(
                 ["research", "strategic_number", "build", "build-forward"]
             )
 
-    params = mutate_parameters(params, mutation_chance)
-    strategic_number = mutate_sn_values(strategic_numbers, mutation_chance)
+    simple.parameters = mutate_parameters(simple.parameters, mutation_chance)
+    simple.strategic_numbers = mutate_sn_values(
+        simple.strategic_numbers, mutation_chance
+    )
 
     if random.random() < mutation_chance:
         if random.random() < 0.25:
-            threshold = random.randint(0, 200)
+            simple.threshold = random.randint(0, 200)
         else:
-            threshold += random.randint(-10, 10)
+            simple.threshold += random.randint(-10, 10)
 
-    if force_castle_age_units and params["Trainable"] != "villager" and type == "train":
-        age_required = ["current-age  >= 2"]
+    if (
+        settings.force_castle_age_units
+        and simple.parameters["Trainable"] != "villager"
+        and simple.type == "train"
+    ):
+        simple.age_required = ["current-age  >= 2"]
     elif random.random() < mutation_chance:
-        age_required = random.choice(
+        simple.age_required = random.choice(
             [
                 [""],
                 ["current-age > 0"],
@@ -884,142 +880,29 @@ def mutate_simple(simple, mutation_chance):
         )
 
     if random.random() < mutation_chance:
-        requirement = random.choice(
+        simple.requirement = random.choice(
             TRAINABLE + BUILDABLE + PARAMETERS["TechId"].split(";")
         )
 
     if random.random() < mutation_chance:
         if random.random() < 0.25:
-            gametime = random.randint(0, 7200)
+            simple.game_time = random.randint(0, 7200)
         else:
-            gametime += random.randint(-100, 100)
+            simple.game_time += random.randint(-100, 100)
 
     if random.random() < mutation_chance:
         if random.random() < 0.25:
-            requirement_count = random.randint(0, 10)
+            simple.requirement_count = random.randint(0, 10)
         else:
-            requirement_count += random.randint(-1, 1)
+            simple.requirement_count += random.randint(-1, 1)
 
     if random.random() < mutation_chance:
-        goal = random.randint(1, 40)
+        simple.goal = random.randint(1, 40)
 
     if random.random() < mutation_chance:
-        use_goal = random.choice([True, False])
+        simple.use_goal = random.choice([True, False])
 
-    return [
-        type,
-        params,
-        threshold,
-        age_required,
-        requirement,
-        requirement_count,
-        gametime,
-        strategic_numbers,
-        goal,
-        use_goal,
-    ]
-
-
-def write_simple(simple):
-    type = simple[0]
-    params = copy.deepcopy(simple[1])
-    threshold = simple[2]
-    age_required = simple[3].copy()
-    requirement = simple[4]
-    requirement_count = simple[5]
-    gametime = simple[6]
-    strategic_numbers = simple[7]
-    goal = simple[8]
-    use_goal = simple[9]
-
-    # print(strategic_numbers)
-    # print(params)
-
-    string = ""
-    string += "\n"  # + age_required[0] + "\n"
-    string += "(defrule"
-
-    if use_goal:
-        string += "\n\t(goal " + str(goal) + " 1)"
-
-    if age_required[0] != "":
-        string += "\n\t(" + age_required[0] + ")"
-
-    if gametime > 0:
-        string += "\n\t(game-time > " + str(gametime) + ")"
-
-    if requirement != "none" and requirement != "":
-        try:
-            test = int(requirement)
-            string += "\n\t(up-research-status c: " + requirement + " >= 2)"
-        except ValueError:
-            if requirement in BUILDABLE:
-                string += (
-                    "\n\t(building-type-count-total "
-                    + requirement
-                    + " > "
-                    + str(requirement_count)
-                    + ")"
-                )
-            else:
-                string += (
-                    "\n\t(unit-type-count-total "
-                    + requirement
-                    + " > "
-                    + str(requirement_count)
-                    + ")"
-                )
-
-    if type == "train":
-        string += "\n\t(can-train " + str(params["Trainable"] + ")")
-        string += "\n\t(unit-type-count-total " + str(
-            params["Trainable"] + " < " + str(max(0, threshold)) + ")"
-        )
-
-    if type == "build" or type == "build-forward":
-        string += "\n\t(can-build " + str(params["Buildable"] + ")")
-
-        string += (
-            "\n\t(building-type-count-total "
-            + params["Buildable"]
-            + " < "
-            + str(max(0, threshold))
-            + ")"
-        )
-
-    if type == "research":
-        string += "\n\t(can-research " + str(params["TechId"] + ")")
-
-    if type == "strategic_number":
-        string += "\n\t(true)"
-
-    string += "\n=>"
-
-    if type == "train":
-        string += "\n\t(train " + str(params["Trainable"] + ")")
-
-    if type == "build":
-        string += "\n\t(build " + str(params["Buildable"] + ")")
-
-    if type == "build-forward":
-        string += "\n\t(build-forward " + str(params["Buildable"] + ")")
-
-    if type == "research":
-        string += "\n\t(research " + str(params["TechId"] + ")")
-
-    if type == "strategic_number":
-        string += (
-            "\n\t(set-strategic-number "
-            + str(params["SnId"])
-            + " "
-            + str(strategic_numbers[params["SnId"]])
-            + ")\n\t(disable-self)"
-        )
-
-    string += ")\n"  # + age_required[1]
-
-    return string
-
+    return simple
 
 def generate_attack_rule():
     type = random.choice(["Attack", "Retreat", "Retreat to"])

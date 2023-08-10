@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from globals import ACTIONS, FACTS
+from globals import ACTIONS, BUILDABLE, FACTS
 
 
 @dataclass
@@ -118,7 +118,40 @@ class Simple:
     age_required: list[str]
     requirement: str
     requirement_count: int
-    gametime: int
+    game_time: int
     strategic_numbers: dict[str, str | int]
-    goal: int
-    use_goal: bool
+    goal: int = 1
+    use_goal: bool = False
+
+    def __str__(self) -> str:
+        ans = "\n(defrule"
+        if self.use_goal:
+            ans += f"\n\t(goal {self.goal} 1)"
+        if self.age_required[0]:
+            ans += f"\n\t({self.age_required[0]})"
+        if self.game_time > 0:
+            ans += f"\n\t(game-time > {self.game_time})"
+        if self.requirement and self.requirement != "none":
+            try:
+                int(self.requirement)
+            except ValueError:
+                ans += f"\n\t({'building-type-count-total' if self.requirement in BUILDABLE else 'unit-type-count-total'} {self.requirement} > {self.requirement_count})"
+            else:
+                ans += f"\n\t(up-research-status c: {self.requirement} >= 2)"
+        if self.type == "train":
+            ans += f"\n\t(can-train {self.parameters['Trainable']})"
+            ans += f"\n\t(unit-type-count-total {self.parameters['Trainable']} < {max(0, self.threshold)})"
+            ans += f"=>\n\t(train {self.parameters['Trainable']})"
+        elif self.type in {"build", "build-forward"}:
+            ans += f"\n\t(can-build {self.parameters['Buildable']})"
+            ans += f"\n\t(building-type-count-total {self.parameters['Buildable']} < {max(0, self.threshold)})"
+            ans += f"=>\n\t({self.type} {self.parameters['Buildable']})"
+        elif self.type == "research":
+            ans += f"\n\t(can-research {self.parameters['TechId']})"
+            ans += f"=>\n\t(research {self.parameters['TechId']})"
+        elif self.type == "strategic-number":
+            ans += "\n\t(true)"
+            ans += f"=>\n\t(set-strategic-number {self.parameters['SnId']} {self.strategic_numbers[str(self.parameters['SnId'])]})\n\t(disable-self)"
+        ans += ")\n"
+
+        return ans
