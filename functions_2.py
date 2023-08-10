@@ -900,18 +900,13 @@ def mutate_goal(goal: Goal, mutation_chance: float) -> Goal:
 
     return goal
 
-def parse_params():
-    f = open("params.csv", "r")
-    params = f.read().split("\n")
-    f.close()
+def parse_params() -> dict[str,str]:
+    with open("params.csv", "r", encoding="utf-8") as f:
+        params = f.readlines()
 
-    paramdict = {}
-    for i in range(len(params)):
-        temp = params[i].split(",")
-        if len(temp) > 1:
-            paramdict[temp[0]] = temp[1]
-
+    paramdict = {x[0]: x[1] for param in params if len(x:=param.split(',')) > 1}
     print(paramdict)
+    return paramdict
 
 
 def mutate_parameters(
