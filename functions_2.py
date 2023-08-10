@@ -844,9 +844,7 @@ class Goal:
     fact_count: int
 
 
-def generate_goal(goal_facts: list[str], parameters: dict[str, str]) -> Goal:
-    goal_facts = goal_facts or GOAL_FACTS
-    parameters = parameters or PARAMETERS
+def generate_goal() -> Goal:
     goal_id = random.randint(1, 40)
     value = random.randint(0, 1)
     disable = random.choice([True, False])
@@ -855,7 +853,7 @@ def generate_goal(goal_facts: list[str], parameters: dict[str, str]) -> Goal:
     fact_count = random.randint(1, 4)
 
     used_facts = [
-        Fact(random.choice(goal_facts), generate_parameters(parameters=parameters))
+        Fact(random.choice(GOAL_FACTS), generate_parameters())
         for _ in range(4)
     ]
     return Goal(goal_id, value, disable, goal_num, use_goal, used_facts, fact_count)
@@ -942,7 +940,7 @@ def parse_params():
 def mutate_parameters(
     parameters: dict[str, str | int], mutation_chance: float
 ) -> dict[str, str | int]:
-    out: dict[str, str | int] = {}
+    out = copy.deepcopy(parameters)
     for key in parameters:
         mutation_rules = PARAMETERS[key]
         if "|" in mutation_rules:
@@ -956,10 +954,9 @@ def mutate_parameters(
     return out
 
 
-def generate_parameters(parameters: dict[str, str]) -> dict[str, str | int]:
-    parameters = parameters or PARAMETERS
+def generate_parameters() -> dict[str, str | int]:
     out: dict[str, str | int] = {}
-    for key, mutation_rules in parameters.items():
+    for key, mutation_rules in PARAMETERS.items():
         if "|" in mutation_rules:
             out[key] = random.randint(*tuple(map(int, mutation_rules.split("|"))))
         elif ";" in mutation_rules:
