@@ -32,12 +32,11 @@ from models import (
     Rule,
     Simple,
 )
-from settings import *
 import settings
 
 T = TypeVar("T")
 
-if allow_towers:
+if settings.allow_towers:
     PARAMETERS["Buildable"] += ";watch-tower;guard-tower;keep"
 
 with open("resign.txt", "r", encoding="utf-8") as r:
@@ -83,12 +82,11 @@ def mutate_goal(goal: Goal, mutation_chance: float) -> Goal:
 
 def parse_params() -> dict[str, str]:
     with open("params.csv", "r", encoding="utf-8") as f:
-        params = f.readlines()
-
-    paramdict = {x[0]: x[1] for param in params if len(x := param.split(",")) > 1}
-    print(paramdict)
-
-    return paramdict
+        parameters = {
+            x[0]: x[1] for param in f.readlines() if len(x := param.split(",")) > 1
+        }
+    print(parameters)
+    return parameters
 
 
 def mutate_parameters(
@@ -191,21 +189,36 @@ def mutate_action(action: Action, mutation_chance: float) -> Action:
 
 
 def generate_rule() -> Rule:
-    fact_length = random.randint(1, max_fact_length)
-    action_length = random.randint(1, max_action_length)
-    # age_required = random.choice([["","","#load-if-not-defined DARK-AGE-END","#end-if","#load-if-not-defined FEUDAL-AGE-END","#end-if","#load-if-not-defined CASTLE-AGE-END","#end-if","#load-if-not-defined IMPERIAL-AGE-START","#end-if"]])
+    fact_length = random.randint(1, settings.max_fact_length)
+    action_length = random.randint(1, settings.max_action_length)
+    # age_required = random.choice(
+    #     [
+    #         [
+    #             "",
+    #             "",
+    #             "#load-if-not-defined DARK-AGE-END",
+    #             "#end-if",
+    #             "#load-if-not-defined FEUDAL-AGE-END",
+    #             "#end-if",
+    #             "#load-if-not-defined CASTLE-AGE-END",
+    #             "#end-if",
+    #             "#load-if-not-defined IMPERIAL-AGE-START",
+    #             "#end-if",
+    #         ]
+    #     ]
+    # )
     age_required = ["", ""]
-    local_facts = [generate_fact() for _ in range(max_fact_length)]
-    local_actions = [generate_action() for _ in range(max_fact_length)]
+    local_facts = [generate_fact() for _ in range(settings.max_fact_length)]
+    local_actions = [generate_action() for _ in range(settings.max_fact_length)]
 
     return Rule(fact_length, action_length, age_required, local_facts, local_actions)
 
 
 def mutate_rule(rule: Rule, mutation_chance: float) -> Rule:
     if random.random() < mutation_chance:
-        rule.fact_length = random.randint(1, max_fact_length)
+        rule.fact_length = random.randint(1, settings.max_fact_length)
     if random.random() < mutation_chance:
-        rule.action_length = random.randint(1, max_action_length)
+        rule.action_length = random.randint(1, settings.max_action_length)
     if random.random() < mutation_chance:
         rule.age_required = random.choice(
             [
@@ -514,7 +527,19 @@ def crossover(ai_1: AI, ai_2: AI, mutation_chance: float) -> AI:
 
 
 def export_ai(ai: AI, ai_name: str) -> None:
-    # default = "(defrule\n(true)\n=>\n(set-strategic-number sn-cap-civilian-builders -1)\n(set-strategic-number sn-cap-civilian-gatherers 0)\n(set-strategic-number sn-cap-civilian-explorers 0)\n(set-strategic-number sn-initial-exploration-required 0)\n(set-strategic-number sn-maximum-food-drop-distance -2)\n(set-strategic-number sn-maximum-gold-drop-distance -2)\n(set-strategic-number sn-maximum-hunt-drop-distance -2)\n(set-strategic-number sn-maximum-stone-drop-distance -2)\n(set-strategic-number sn-maximum-wood-drop-distance -2)\n(set-strategic-number sn-disable-villager-garrison 3)\n(disable-self))\n\n"
+    # default = (
+    #     "(defrule\n(true)\n=>\n"
+    #     "(set-strategic-number sn-cap-civilian-builders -1)\n"
+    #     "(set-strategic-number sn-cap-civilian-gatherers 0)\n"
+    #     "(set-strategic-number sn-cap-civilian-explorers 0)\n"
+    #     "(set-strategic-number sn-initial-exploration-required 0)\n"
+    #     "(set-strategic-number sn-maximum-food-drop-distance -2)\n"
+    #     "(set-strategic-number sn-maximum-gold-drop-distance -2)\n"
+    #     "(set-strategic-number sn-maximum-hunt-drop-distance -2)\n"
+    #     "(set-strategic-number sn-maximum-stone-drop-distance -2)\n"
+    #     "(set-strategic-number sn-maximum-wood-drop-distance -2)\n"
+    #     "(set-strategic-number sn-disable-villager-garrison 3)\n(disable-self))\n\n"
+    # )
     self, enemy = (2, 1) if "self" in ai_name else (1, 2)
     default_ai = (
         f"(defconst selfPlayerID {self})\n(defconst enemyPlayerID {enemy})\n\n"
@@ -657,7 +682,7 @@ def mutate_goal_action(goal_action: GoalAction, mutation_chance: float) -> GoalA
 
 
 def generate_simple() -> Simple:
-    type = random.choice(
+    simple_type = random.choice(
         ["train", "research", "strategic_number", "build", "build-forward"]
     )
     goal = random.randint(1, 40)
@@ -671,7 +696,7 @@ def generate_simple() -> Simple:
     if (
         settings.force_castle_age_units
         and params["Trainable"] != "villager"
-        and type == "train"
+        and simple_type == "train"
     ):
         age_required = ["current-age  >= 3"]
     else:
@@ -707,17 +732,17 @@ def generate_simple() -> Simple:
             ]
         )
 
-    gametime = random.randint(0, 7200)
+    game_time = random.randint(0, 7200)
     requirement_count = random.randint(0, 10)
 
     return Simple(
-        type,
+        simple_type,
         params,
         threshold,
         age_required,
         requirement,
         requirement_count,
-        gametime,
+        game_time,
         strategic_numbers,
         goal,
         use_goal,
@@ -726,7 +751,7 @@ def generate_simple() -> Simple:
 
 def mutate_simple(simple: Simple, mutation_chance: float) -> Simple:
     if random.random() < mutation_chance:
-        if allow_units:
+        if settings.allow_units:
             simple.type = random.choice(
                 ["train", "research", "strategic_number", "build", "build-forward"]
             )
@@ -812,7 +837,7 @@ def mutate_simple(simple: Simple, mutation_chance: float) -> Simple:
 
 
 def generate_attack_rule() -> AttackRule:
-    type = random.choice(["Attack", "Retreat", "Retreat to"])
+    rule_type = random.choice(["Attack", "Retreat", "Retreat to"])
     retreat_unit = random.choice(TRAINABLE)
     retreat_to = random.choice(BUILDABLE)
 
@@ -908,7 +933,7 @@ def generate_attack_rule() -> AttackRule:
         random.randint(0, 200),
     )
 
-    gametime = GameTimeCondition(
+    game_time = GameTimeCondition(
         random.choice(["<", ">", "==", "!=", "<=", ">=", ""]),
         random.randint(0, 7200),
     )
@@ -920,12 +945,12 @@ def generate_attack_rule() -> AttackRule:
     attack_percent = random.randint(0, 100)
 
     return AttackRule(
-        type,
+        rule_type,
         age_required,
         enemy_age_required,
         population1,
         population2,
-        gametime,
+        game_time,
         retreat_unit,
         attack_percent,
         retreat_to,
