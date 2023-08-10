@@ -1,8 +1,8 @@
-
+.venv
+__pycache__
 .idea/AlphaScripter.iml
 .idea/inspectionProfiles/profiles_settings.xml
 .idea/inspectionProfiles/Project_Default.xml
 .idea/misc.xml
 .idea/modules.xml
 .idea/vcs.xml
-__pycache__/ai_parser.cpython-39.pyc
