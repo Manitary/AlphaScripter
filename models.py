@@ -242,6 +242,9 @@ class Filter:
     compare: str
     value: int
 
+    def __str__(self) -> str:
+        return f"{self.object} {self.compare} {self.value}"
+
 
 @dataclass
 class DUCSearch:
@@ -253,3 +256,38 @@ class DUCSearch:
     selected: str
     selected_max: int
     distance_check: bool
+
+    def __str__(self) -> str:
+        used_const = "enemyPlayerID"
+        ans = (
+            "\n(defrule\n\t(true)\n=>"
+            "\n\t(up-full-reset-search)\n\t(up-reset-filters)\n\t(set-strategic-number 251 "
+            f"{used_const}"
+            ")\n\t(set-strategic-number 249 "
+            f"{used_const}"
+            "))\n"
+        )
+        if self.distance_check:
+            ans += (
+                "\n(defrule\n\t(true)\n=>\n"
+                f"\t(up-find-remote c: {self.selected} c: {self.selected_max}))\n\n"
+                "\n(defrule\n\t(true)\n=>\n\t(up-set-target-object 2 c: 0))"
+                "\n(defrule\n\t(true)\n=>\n"
+                "\n\t (up-get-point 12 55))\n"
+                "\n(defrule\n\t(true)\n=>\n\t(up-set-target-point 55))\n"
+            )
+        ans += (
+            "\n(defrule\n\t(true)\n=>\n\t"
+            f"(up-find-local c: {self.self_selected} c: {self.self_selected_max}))\n\n"
+            "\n(defrule\n\t(true)\n=>\n"
+        )
+        ans += "".join(
+            [
+                f"\t(up-remove-objects 1 {f})\n"
+                for i, f in enumerate(self.filters)
+                if i < self.used_filters
+            ]
+        )
+        ans += f"\t(up-create-group 0 0 c: {self.group_id}))\n"
+
+        return ans

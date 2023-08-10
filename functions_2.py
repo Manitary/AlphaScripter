@@ -638,7 +638,7 @@ def write_ai(ai, ai_name):
 
     if allow_DUC:
         for i in range(len(ai[3])):
-            c = write_DUC_search(ai[3][i])
+            c = str(ai[3][i])  # ai[3][i] is a DUCSearch object
             f.write(c)
             c = write_DUC_target(ai[4][i])
             f.write(c)
@@ -1371,81 +1371,6 @@ def mutate_DUC_target(target, mutation_chance):
         goal,
         use_goal,
     ]
-
-
-def write_DUC_search(search):
-    self_selected = search[0]
-    self_selected_max = search[1]
-    used_filters = search[2]
-    filters = search[3]
-    group_id = search[4]
-    selected = search[5]
-    selected_max = search[6]
-    distance_check = search[7]
-
-    used_const = "enemyPlayerID"
-
-    string = ""
-
-    string += (
-        "\n(defrule\n\t(true)\n=>\n\t(up-full-reset-search)\n\t(up-reset-filters)\n\t(set-strategic-number 251 "
-        + used_const
-        + ")\n\t(set-strategic-number 249 "
-        + used_const
-        + "))\n"
-    )
-
-    if distance_check:
-        string += "\n(defrule\n\t(true)\n=>\n"
-        string += (
-            "\t(up-find-remote c: "
-            + str(selected)
-            + " c: "
-            + str(selected_max)
-            + "))\n\n"
-        )
-
-        string += "\n(defrule\n\t(true)\n=>\n\t(up-set-target-object 2 c: 0))"
-
-        string += "\n(defrule\n\t(true)\n=>\n"
-        string += "\n\t (up-get-point 12 55))\n"
-
-        string += "\n(defrule\n\t(true)\n=>\n\t(up-set-target-point 55))\n"
-
-    string += "\n(defrule\n\t(true)\n=>\n\t"
-
-    string += (
-        "(up-find-local c: "
-        + str(self_selected)
-        + " c: "
-        + str(self_selected_max)
-        + "))\n\n"
-    )
-
-    string += "\n(defrule\n\t(true)\n=>\n"
-
-    # print(used_filters)
-
-    if used_filters > 0:
-        # print("true")
-        for i in range(used_filters):
-            filter_object = filters[i][0]
-            filter_compare = filters[i][1]
-            filter_value = filters[i][2]
-
-            string += (
-                "\t(up-remove-objects 1 "
-                + str(filter_object)
-                + " "
-                + str(filter_compare)
-                + " "
-                + str(filter_value)
-                + ")\n"
-            )
-
-    string += "\t(up-create-group 0 0 c: " + str(group_id) + "))\n"
-
-    return string
 
 
 def write_DUC_target(target):
