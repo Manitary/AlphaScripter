@@ -163,18 +163,34 @@ class PopulationCondition:
     comparison: str
     amount: int
 
+    def __bool__(self) -> bool:
+        if self.comparison and self.type:
+            return True
+        return False
+
+    def __str__(self) -> str:
+        return f"{self.type} {self.comparison} {self.amount}"
+
 
 @dataclass
 class GameTimeCondition:
     comparison: str
     amount: int
 
+    def __bool__(self) -> bool:
+        if self.comparison:
+            return True
+        return False
+
+    def __str__(self) -> str:
+        return f"{self.comparison} {self.amount}"
+
 
 @dataclass
 class AttackRule:
     type: str
-    age_required: str
-    enemy_age_required: str
+    age_required: str  # ? | list[str]
+    enemy_age_required: str  # ? | list[str]
     population1: PopulationCondition
     population2: PopulationCondition
     game_time: GameTimeCondition
@@ -183,3 +199,38 @@ class AttackRule:
     retreat_to: str
     goal: int = 1
     use_goal: bool = False
+
+    def __str__(self) -> str:
+        ans = "\n(defrule \n"
+        if self.use_goal:
+            ans += f"\n\t(goal {self.goal} 1)"
+        ans += self._write_conditions()
+        ans += "\n=>\n\t"
+        ans += f"(set-strategic-number sn-percent-attack-soldiers {self.attack_percent})\n\t"
+        if self.type == "Attack":
+            ans += "(attack-now)"
+        elif self.type == "Retreat":
+            ans += "(up-reset-attack-now)\n\t(up-retreat-now)"
+        elif self.type == "Retreat to":
+            ans += (
+                "(up-reset-attack-now)\n\t"
+                f"(up-retreat-to {self.retreat_to} c: {self.retreat_unit})"
+            )
+        ans += "\n)"
+        return ans
+
+    def _write_conditions(self) -> str:
+        ans = ""
+        if self.age_required:
+            ans += f"\n\t({self.age_required})\n\t"
+        if self.enemy_age_required:
+            ans += f"\n\t({self.enemy_age_required})\n\t"
+        if self.population1:
+            ans += f"({self.population1})\n\t"
+        if self.population2:
+            ans += f"({self.population2})\n\t"
+        if self.game_time:
+            ans += f"(game-time {self.game_time})\n\t"
+        if not ans:
+            ans = "\n\t(true)"
+        return ans

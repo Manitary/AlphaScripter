@@ -631,7 +631,7 @@ def write_ai(ai, ai_name):
 
     if allow_attack_rules:
         for i in range(len(ai[2])):
-            c = write_attack_rule(ai[2][i])
+            c = str(ai[2][i])  # ai[2][i] is an AttackRule object
             f.write(c)
 
     if allow_DUC:
@@ -1138,7 +1138,9 @@ def mutate_attack_rule(rule: AttackRule, mutation_chance: float) -> AttackRule:
     if random.random() < mutation_chance:
         rule.population2.amount = random.randint(0, 200)
     if random.random() < mutation_chance:
-        rule.game_time.comparison = random.choice(["<", ">", "==", "!=", "<=", ">=", ""])
+        rule.game_time.comparison = random.choice(
+            ["<", ">", "==", "!=", "<=", ">=", ""]
+        )
     if random.random() < mutation_chance:
         rule.game_time.amount = random.randint(0, 7200)
     if random.random() < mutation_chance:
@@ -1152,101 +1154,6 @@ def mutate_attack_rule(rule: AttackRule, mutation_chance: float) -> AttackRule:
     #     goal = 1
 
     return rule
-
-
-def write_attack_rule(rule):
-    string = ""
-    string += "\n"  # + age_required[0] + "\n"
-    string += "(defrule \n"
-
-    type = rule[0]
-    age_required = rule[1]
-    enemy_age_required = rule[2]
-    population1 = rule[3]
-    population2 = rule[4]
-    gametime = rule[5]
-    attack_percent = rule[6]
-    retreat_unit = rule[7]
-    retreat_to = rule[8]
-    goal = rule[9]
-    use_goal = rule[10]
-
-    if use_goal:
-        if goal == False or goal == True or goal == "FALSE" or goal == "TRUE":
-            print("bad goal value")
-            goal = 1
-        string += "\n\t(goal " + str(goal) + " 1)"
-
-    if (
-        age_required == ""
-        and enemy_age_required == ""
-        and population1[0] == ""
-        and population2[0] == ""
-        and gametime[0] == ""
-        and population1[1] != ""
-        and population2[1] != ""
-    ):
-        string += "\n\t(true)"
-    else:
-        if age_required != "" and age_required != [""]:
-            try:
-                string += "\n\t(" + age_required + ")"
-                string += "\n\t"
-
-            except TypeError:
-                string += "\n\t(" + age_required[0] + ")"
-                string += "\n\t"
-
-        if enemy_age_required != "" and enemy_age_required != [""]:
-            try:
-                string += "\n\t(" + enemy_age_required + ")"
-                string += "\n\t"
-
-            except TypeError:
-                string += "\n\t(" + enemy_age_required[0] + ")"
-                string += "\n\t"
-
-        if population1[0] != "" and population1[1] != "":
-            string += (
-                "("
-                + population1[0]
-                + " "
-                + population1[1]
-                + " "
-                + str(population1[2])
-                + ")\n\t"
-            )
-
-        if population2[0] != "" and population2[1] != "":
-            string += (
-                "("
-                + population2[0]
-                + " "
-                + population2[1]
-                + " "
-                + str(population2[2])
-                + ")\n\t"
-            )
-
-        if gametime[0] != "" and gametime[1] != "":
-            string += "(game-time " + gametime[0] + " " + str(gametime[1]) + ")\n\t"
-
-    string += "\n=>\n\t"
-
-    string += "(set-strategic-number sn-percent-attack-soldiers " + str(attack_percent)
-
-    if type == "Attack":
-        string += ")\n\t(attack-now)\n)"
-
-    elif type == "Retreat":
-        string += ")\n\t(up-reset-attack-now)\n\t(up-retreat-now)\n)"
-
-    elif type == "Retreat to":
-        string += ")\n\t(up-reset-attack-now)\n\t(up-retreat-to "
-        string += retreat_to + " c: "
-        string += retreat_unit + " )\n)"
-
-    return string
 
 
 def generate_DUC_search():
