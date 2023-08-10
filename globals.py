@@ -1,4 +1,5 @@
 OLD_PARAMETERS = {
+    # ! Duplicate keys: EventType, ActionId
     "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;614;615;616;617;618;619;620;621;631",
     "Age": "0;1;2;3",
     "AllyPlayer": "1;2;3;4;5;6;7;8;my-player-number;target-player;focus-player;-101;-103;-108;-201",
