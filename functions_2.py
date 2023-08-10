@@ -1187,65 +1187,38 @@ def generate_duc_search() -> DUCSearch:
     )
 
 
-def mutate_DUC_search(search, mutation_chance):
-    self_selected = search[0]
-    self_selected_max = search[1]
-    used_filters = search[2]
-    filters = search[3].copy()
-    group_id = search[4]
-    selected = search[5]
-    selected_max = search[6]
-    distance_check = search[7]
-
+def mutate_duc_search(search: DUCSearch, mutation_chance: float) -> DUCSearch:
     if random.random() < mutation_chance:
-        selected = random.choice(PLAYER_LIST)
-
+        search.selected = random.choice(PLAYER_LIST)
     if random.random() < mutation_chance:
         if random.random() < 0.25:
-            selected_max = random.randint(0, 40)
+            search.selected_max = random.randint(0, 40)
         else:
-            selected_max += random.randint(-5, 5)
-
+            search.selected_max += random.randint(-5, 5)
     if random.random() < mutation_chance:
-        distance_check = random.choice([True, False])
-
+        search.distance_check = random.choice([True, False])
     if random.random() < mutation_chance:
-        self_selected = random.choice(PLAYER_LIST)
-
+        search.self_selected = random.choice(PLAYER_LIST)
     if random.random() < mutation_chance:
         if random.random() < 0.25:
-            self_selected_max = random.randint(0, 40)
+            search.self_selected_max = random.randint(0, 40)
         else:
-            self_selected_max += random.randint(-5, 5)
-
+            search.self_selected_max += random.randint(-5, 5)
     if random.random() < mutation_chance:
-        used_filters = random.randint(0, 5)
-
-    for i in range(len(filters)):
+        search.used_filters = random.randint(0, 5)
+    for filter in search.filters:
         if random.random() < mutation_chance:
-            filters[i][0] = random.randint(-1, 84)
-
+            filter.object = random.randint(-1, 84)
         if random.random() < mutation_chance:
-            filters[i][1] = random.choice(SIMPLE_COMPARE)
-
+            filter.compare = random.choice(SIMPLE_COMPARE)
         if random.random() < mutation_chance:
-            filters[i][2] = random.randint(-5, 100)
+            filter.value = random.randint(-5, 100)
         else:
-            filters[i][2] += random.randint(-5, 5)
-
+            filter.value += random.randint(-5, 5)
     if random.random() < mutation_chance:
-        group_id = random.randint(0, 9)
+        search.group_id = random.randint(0, 9)
 
-    return [
-        self_selected,
-        self_selected_max,
-        used_filters,
-        filters,
-        group_id,
-        selected,
-        selected_max,
-        distance_check,
-    ]
+    return search
 
 
 def generate_DUC_target():
