@@ -72,6 +72,9 @@ class Action:
         )
 
 
+def _write_actions(actions: list[Action]) -> str:
+    return "....\n" + "\n".join(f"({action})" for action in actions)
+
 @dataclass
 class Rule:
     fact_length: int
@@ -81,7 +84,7 @@ class Rule:
     local_actions: list[Action]
 
     def __str__(self) -> str:
-        ans = f"\n(defrule{self.write_facts()}\n=>{self.write_actions()})\n"
+        ans = f"\n(defrule{self.write_facts()}\n=>{_write_actions(self.local_actions)})\n"
         if len(ans.split()) > 20:
             ans = ""
         return ans
@@ -105,10 +108,6 @@ class Rule:
             if fact.is_not:
                 ans += ")"
         return ans
-
-    def write_actions(self) -> str:
-        return "....\n" + "\n".join(f"({action})" for action in self.local_actions)
-
 
 @dataclass
 class Simple:
@@ -352,4 +351,19 @@ class DUCTarget:
             "(defrule\n\t(true)\n\t=>\n\t(up-full-reset-search)\n\t(up-reset-filters)\n\t"
             "(set-strategic-number 251 enemyPlayerID)\n\t(set-strategic-number 249 enemyPlayerID))"
         )
+        return ans
+
+
+@dataclass
+class GoalAction:
+    goals: list[int]
+    values: list[int]
+    actions: list[Action]
+    used_goals: int
+    used_actions: int
+
+    def __str__(self) -> str:
+        ans = "\n(defrule"
+        ans += "".join((f"\n\t(goal {g} {v})") for g, v in zip(self.goals, self.values))
+        ans += f"\n=>\n\t{_write_actions(self.actions)})\n\n"
         return ans

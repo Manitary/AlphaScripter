@@ -23,6 +23,7 @@ from models import (
     Filter,
     GameTimeCondition,
     Goal,
+    GoalAction,
     GoalFact,
     PopulationCondition,
     Rule,
@@ -623,14 +624,14 @@ def write_ai(ai, ai_name):
     f.write(default)
 
     for i in range(len(ai[5])):
-        f.write(str(ai[5][i]))
+        f.write(str(ai[5][i]))  # ai[5][i] is a Goal object
 
     for i in range(len(ai[0])):
         c = str(ai[0][i])  # ai[0][i] is a Simple object
         f.write(c)
 
     for i in range(len(ai[6])):
-        f.write(write_goal_action(ai[6][i]))
+        f.write(str(ai[6][i]))  # ai[6][i] is a GoalAction object
 
     if allow_attack_rules:
         for i in range(len(ai[2])):
@@ -641,12 +642,12 @@ def write_ai(ai, ai_name):
         for i in range(len(ai[3])):
             c = str(ai[3][i])  # ai[3][i] is a DUCSearch object
             f.write(c)
-            c = write_DUC_target(ai[4][i])
+            c = str(ai[4][i])  # ai[4][i] is a DUCTarget object
             f.write(c)
 
     if allow_complex:
         for i in range(len(ai[1])):
-            c = write_rule(ai[1][i])
+            c = str(ai[1][i])  # ai[1][i] is a Rule object
             f.write(c)
 
     f.close()
@@ -678,89 +679,48 @@ def read_ai(file):
     return out
 
 
-def generate_goal_action():
-    goal_1 = random.randint(1, 40)
-    goal_2 = random.randint(1, 40)
-    goal_3 = random.randint(1, 40)
+def generate_goal_action() -> GoalAction:
+    size = 3
+    goals = [random.randint(1, 40) for _ in range(size)]
+    values = [random.randint(0, 1) for _ in range(size)]
 
-    value_1 = random.randint(0, 1)
-    value_2 = random.randint(0, 1)
-    value_3 = random.randint(0, 1)
-
-    action = []
-    for i in range(3):
+    actions: list[Action] = []
+    for _ in range(size):
         temp = generate_action()
-
-        while temp[0] == "set-strategic-number":
+        while temp.action_name == "set-strategic-number":
             temp = generate_action()
-
-        action.append(temp)
+        actions.append(temp)
 
     used_goals = random.randint(1, 3)
     used_actions = random.randint(1, 3)
 
-    return [
-        [goal_1, goal_2, goal_3],
-        [value_1, value_2, value_3],
-        action,
-        [used_goals, used_actions],
-    ]
+    return GoalAction(
+        goals,
+        values,
+        actions,
+        used_goals,
+        used_actions,
+    )
 
 
-def mutate_goal_action(goal_action, mutation_chance):
-    local = copy.deepcopy(goal_action)
-
-    goals = local[0]
-
-    values = local[1]
-
-    action = local[2]
-
-    count = local[3]
-
-    for i in range(len(goals)):
+def mutate_goal_action(goal_action: GoalAction, mutation_chance: float) -> GoalAction:
+    for i, _ in enumerate(goal_action.goals):
         if random.random() < mutation_chance:
-            goals[i] = random.randint(1, 40)
-
-    for i in range(len(values)):
+            goal_action.goals[i] = random.randint(1, 40)
+    for i, _ in enumerate(goal_action.values):
         if random.random() < mutation_chance:
-            values[i] = random.randint(0, 1)
+            goal_action.values[i] = random.randint(0, 1)
+    for action in goal_action.actions:
+        action = mutate_action(action, mutation_chance)
+        if action.action_name == "set-strategic-number":
+            action = mutate_action(action, mutation_chance)
+        # ? Should this be a while loop until the action name is not that?
+    if random.random() < mutation_chance:
+        goal_action.used_goals = random.randint(1, 3)
+    if random.random() < mutation_chance:
+        goal_action.used_actions = random.randint(1, 3)
 
-    for i in range(len(action)):
-        action[i] = mutate_action(action[i], mutation_chance)
-        if action[i][0] == "set-strategic-number":
-            action[i] = mutate_action(action[i], mutation_chance)
-
-    for i in range(len(count)):
-        if random.random() < mutation_chance:
-            count[i] = random.randint(1, 3)
-
-    return [goals, values, action, count]
-
-
-def write_goal_action(goal_action):
-    goals = goal_action[0]
-
-    values = goal_action[1]
-
-    action = goal_action[2]
-
-    count = goal_action[3]
-
-    string = ""
-    string += "\n"  # + age_required[0] + "\n"
-    string += "(defrule"
-
-    for i in range(count[0]):
-        string += "\n\t(goal " + str(goals[i]) + " " + str(values[i]) + ")"
-
-    string += "\n=>\n\t"
-
-    string += write_action(action, count[1])
-
-    string += ")\n\n"
-
-    return string
+    return goal_action
 
 
 def generate_simple() -> Simple:
