@@ -1042,21 +1042,13 @@ def generate_rule() -> Rule:
     return Rule(fact_length, action_length, age_required, local_facts, local_actions)
 
 
-def mutate_rule(rule, mutation_chance):
-    fact_length = rule[0]
-    action_length = rule[1]
-    age_required = rule[2]
-    local_facts = rule[3].copy()
-    local_actions = rule[4].copy()
-
+def mutate_rule(rule: Rule, mutation_chance: float) -> Rule:
     if random.random() < mutation_chance:
-        fact_length = random.randint(1, max_fact_length)
-
+        rule.fact_length = random.randint(1, max_fact_length)
     if random.random() < mutation_chance:
-        action_length = random.randint(1, max_action_length)
-
+        rule.action_length = random.randint(1, max_action_length)
     if random.random() < mutation_chance:
-        age_required = random.choice(
+        rule.age_required = random.choice(
             [
                 [
                     "",
@@ -1072,13 +1064,10 @@ def mutate_rule(rule, mutation_chance):
                 ]
             ]
         )
-
-    for i in range(len(local_facts)):
-        local_facts[i] = mutate_fact(local_facts[i], mutation_chance)
-        local_actions[i] = mutate_action(local_actions[i], mutation_chance)
-
-    rule = [fact_length, action_length, age_required, local_facts, local_actions]
-
+    for fact in rule.local_facts:
+        fact = mutate_fact(fact, mutation_chance)
+    for action in rule.local_actions:
+        action = mutate_action(action, mutation_chance)
     if random.random() < mutation_chance / 5:
         rule = generate_rule()
 
