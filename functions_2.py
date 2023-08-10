@@ -1007,21 +1007,13 @@ def mutate_fact(fact: Fact, mutation_chance: float) -> Fact:
     return fact
 
 
-def mutate_action(action, mutation_chance):
-    action_name = action[0]
-    params = action[1].copy()
-    strategic_numbers = action[2].copy()
-
+def mutate_action(action: Action, mutation_chance: float) -> Action:
     if random.random() < mutation_chance:
-        action_name = random.choice(action_list)
-        # if action_name == 'train':
-        #    print("train!")
-
-    params = mutate_parameters(params, mutation_chance)
-    strategic_numbers = mutate_sn_values(strategic_numbers, mutation_chance)
-
-    action = [action_name, params, strategic_numbers]
-
+        action.action_name = random.choice(action_list)
+    action.parameters = mutate_parameters(action.parameters, mutation_chance)
+    action.strategic_numbers = mutate_sn_values(
+        action.strategic_numbers, mutation_chance
+    )
     return action
 
 
