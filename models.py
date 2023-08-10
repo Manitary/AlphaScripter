@@ -234,3 +234,22 @@ class AttackRule:
         if not ans:
             ans = "\n\t(true)"
         return ans
+
+
+@dataclass
+class Filter:
+    object: int
+    compare: str
+    value: int
+
+
+@dataclass
+class DUCSearch:
+    self_selected: str
+    self_selected_max: int
+    used_filters: int
+    filters: list[Filter]
+    group_id: int
+    selected: str
+    selected_max: int
+    distance_check: bool

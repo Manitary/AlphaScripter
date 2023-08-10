@@ -17,7 +17,9 @@ from globals import (
 from models import (
     Action,
     AttackRule,
+    DUCSearch,
     Fact,
+    Filter,
     GameTimeCondition,
     Goal,
     GoalFact,
@@ -1156,27 +1158,24 @@ def mutate_attack_rule(rule: AttackRule, mutation_chance: float) -> AttackRule:
     return rule
 
 
-def generate_DUC_search():
+def generate_duc_search() -> DUCSearch:
     self_selected = random.choice(PLAYER_LIST)
     self_selected_max = random.randint(0, 40)
     selected = random.choice(PLAYER_LIST)
     selected_max = random.randint(0, 40)
     distance_check = random.choice([True, False])
-
     used_filters = random.randint(0, 5)
-
-    filters = []
-
-    for i in range(7):
-        filter_object = random.randint(-1, 84)
-        filter_compare = random.choice(SIMPLE_COMPARE)
-        filter_value = random.randint(-5, 100)
-
-        filters.append([filter_object, filter_compare, filter_value])
-
+    filters = [
+        Filter(
+            random.randint(-1, 84),
+            random.choice(SIMPLE_COMPARE),
+            random.randint(-5, 100),
+        )
+        for _ in range(7)
+    ]
     group_id = random.randint(0, 9)
 
-    return [
+    return DUCSearch(
         self_selected,
         self_selected_max,
         used_filters,
@@ -1185,7 +1184,7 @@ def generate_DUC_search():
         selected,
         selected_max,
         distance_check,
-    ]
+    )
 
 
 def mutate_DUC_search(search, mutation_chance):
