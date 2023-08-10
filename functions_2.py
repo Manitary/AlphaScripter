@@ -4,6 +4,7 @@ import random
 from dataclasses import dataclass
 
 from settings import *
+from symbol import parameters
 
 OLD_PARAMETERS = {
     "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;614;615;616;617;618;619;620;621;631",
@@ -829,8 +830,14 @@ PLAYER_LIST = CLASS_LIST + BUILDABLE + TRAINABLE
 
 @dataclass
 class Fact:
-    goal_fact: str
+    fact_name: str
     parameters: dict[str, str | int]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.fact_name} "
+            f"{''.join(tuple(str(self.parameters[x]) for x in FACTS[self.fact_name]))}"
+        )
 
 
 @dataclass
@@ -843,6 +850,19 @@ class Goal:
     used_facts: list[Fact]
     fact_count: int
 
+    def __str__(self) -> str:
+        ans = "\n(defrule"
+        if self.use_goal:
+            ans += f"\n\t(goal {self.goal_num} 1)"
+        for i in range(self.fact_count):
+            ans += f"\n\t({self.used_facts[i]})"
+        ans += "\n=>\n"
+        ans += f"\n\t(set-goal {self.goal_id} {self.value})"
+        if self.disable:
+            ans += "\n\t(disable-self)"
+        ans += ")\n"
+        return ans
+
 
 def generate_goal() -> Goal:
     goal_id = random.randint(1, 40)
@@ -853,8 +873,7 @@ def generate_goal() -> Goal:
     fact_count = random.randint(1, 4)
 
     used_facts = [
-        Fact(random.choice(GOAL_FACTS), generate_parameters())
-        for _ in range(4)
+        Fact(random.choice(GOAL_FACTS), generate_parameters()) for _ in range(4)
     ]
     return Goal(goal_id, value, disable, goal_num, use_goal, used_facts, fact_count)
 
@@ -880,48 +899,6 @@ def mutate_goal(goal: Goal, mutation_chance: float) -> Goal:
         )
 
     return goal
-
-
-def write_goal(goal):
-    goal_id = goal[0]
-    value = goal[1]
-    disable = goal[2]
-    goal_num = goal[3]
-    use_goal = goal[4]
-    used_facts = copy.deepcopy(goal[5])
-    fact_count = goal[6]
-
-    string = "\n(defrule"
-    if use_goal:
-        string += "\n\t(goal " + str(goal_num) + " 1)"
-
-    for i in range(fact_count):
-        fact_name = used_facts[i][0]
-        params = copy.deepcopy(used_facts[i][1])
-        string += (
-            "\n\t("
-            + fact_name
-            + " "
-            + str(params[FACTS[fact_name][1]])
-            + " "
-            + str(params[FACTS[fact_name][2]])
-            + " "
-            + str(params[FACTS[fact_name][3]])
-            + " "
-            + str(params[FACTS[fact_name][4]])
-            + ")"
-        )
-
-    string += "\n=>\n"
-    string += "\n\t(set-goal " + str(goal_id) + " " + str(value) + ")"
-
-    if disable:
-        string += "\n\t(disable-self)"
-
-    string += ")\n"
-
-    return string
-
 
 def parse_params():
     f = open("params.csv", "r")
@@ -1661,7 +1638,7 @@ def write_ai(ai, ai_name):
     f.write(default)
 
     for i in range(len(ai[5])):
-        f.write(write_goal(ai[5][i]))
+        f.write(str(ai[5][i]))
 
     for i in range(len(ai[0])):
         c = write_simple(ai[0][i])
