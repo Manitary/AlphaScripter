@@ -1,4 +1,4 @@
-from main import *
+from main import get_single_ai_data, eloDict
 
 get_single_ai_data(["huns"] * 2, "best", list(eloDict.keys()), eloDict, 3)
 
