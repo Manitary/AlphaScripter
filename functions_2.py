@@ -939,28 +939,20 @@ def parse_params():
     print(paramdict)
 
 
-def mutate_parameters(parameters, mutation_chance):
-    out = copy.deepcopy(parameters)
-
+def mutate_parameters(
+    parameters: dict[str, str | int], mutation_chance: float
+) -> dict[str, str | int]:
+    out: dict[str, str | int] = {}
     for key in parameters:
-        if key != "":
-            mutation_rules = PARAMETERS[key]
-
-            if "|" in mutation_rules:
-                mutation_rules = mutation_rules.split("|")
-                if random.random() < mutation_chance:
-                    out[key] = str(
-                        random.randint(int(mutation_rules[0]), int(mutation_rules[1]))
-                    )
-
-            elif ";" in mutation_rules:
-                mutation_rules = mutation_rules.split(";")
-                if random.random() < mutation_chance:
-                    out[key] = random.choice(mutation_rules)
-
-            else:
-                out[key] = PARAMETERS[key]
-
+        mutation_rules = PARAMETERS[key]
+        if "|" in mutation_rules:
+            if random.random() < mutation_chance:
+                out[key] = random.randint(*tuple(map(int, mutation_rules)))
+        elif ";" in mutation_rules:
+            if random.random() < mutation_chance:
+                out[key] = random.choice(mutation_rules.split(";"))
+        else:
+            out[key] = PARAMETERS[key]
     return out
 
 
