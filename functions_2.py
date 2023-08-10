@@ -4,6 +4,7 @@ import random
 import re
 from typing import TypeVar
 
+import settings
 from globals import (
     ACTIONS,
     BUILDABLE,
@@ -32,7 +33,6 @@ from models import (
     Rule,
     Simple,
 )
-import settings
 
 T = TypeVar("T")
 

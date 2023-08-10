@@ -5,7 +5,6 @@ import os
 import subprocess
 import time
 from ctypes import windll
-from dataclasses import dataclass
 
 import msgpackrpc
 

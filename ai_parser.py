@@ -1,6 +1,6 @@
 import os
-import re
 import pickle
+import re
 from dataclasses import dataclass, field
 
 fact_names = {

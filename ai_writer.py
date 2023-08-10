@@ -1,5 +1,6 @@
-from Functions import *
 import tkinter as tk
+
+from Functions import *
 from main import backup
 
 

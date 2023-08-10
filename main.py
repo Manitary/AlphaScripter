@@ -1,13 +1,15 @@
-import random
-import time
-import subprocess
-import os
-import signal
 import copy
-from game_launcher import Launcher, GameSettings, GameStatus
-from Functions import *
-from settings import *
+import os
+import random
+import signal
+import subprocess
+import time
+
 from elosports.elo import Elo
+
+from Functions import *
+from game_launcher import GameSettings, GameStatus, Launcher
+from settings import *
 
 ai_names = ["parent", "b", "c", "d", "e", "f", "g", "h"]
 
