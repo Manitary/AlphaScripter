@@ -1,6 +1,7 @@
 import copy
 import json
 import random
+import re
 
 from globals import (
     ACTIONS,
@@ -228,101 +229,85 @@ def mutate_rule(rule: Rule, mutation_chance: float) -> Rule:
     return rule
 
 
-def simple_to_complex(simple):
+def simple_to_complex(simple: Simple) -> Rule:
     rule = generate_rule()
+    for fact in rule.local_facts:
+        fact.is_not = 0
+        fact.and_or = "and"
 
-    type = simple[0]
-    params = copy.deepcopy(simple[1])
-    threshold = simple[2]
-    simple_age_required = simple[3].copy()
-    requirement = simple[4]
-
-    # print(params)
-
-    fact_length = rule[0]
-    action_length = rule[1]
-    age_required = rule[2]
-    local_facts = rule[3].copy()
-    local_actions = rule[4].copy()
-
-    for i in range(len(local_facts)):
-        local_facts[i][1] = 0
-        local_facts[i][3] = "and"
-
-    action_length = 1
-    fact_length = 0
+    rule.action_length = 1
+    rule.fact_length = 0
 
     # fact = [fact_name, is_not, params, and_or]
     first_fact = 0
 
-    if simple_age_required != [""]:
-        fact_length += 1
-        local_facts[first_fact][0] = "current-age"
+    if simple.age_required:
+        rule.fact_length += 1
+        rule.local_facts[first_fact].fact_name = "current-age"
+        simple.age_required[0] = re.sub(r" {2,}", " ", simple.age_required[0])
 
-        simple_age_required[0] = simple_age_required[0].replace("   ", " ")
-        simple_age_required[0] = simple_age_required[0].replace("  ", " ")
-
-        temp = simple_age_required[0].split(" ")
-
-        local_facts[first_fact][2]["compareOp"] = temp[1]
-
-        if temp[2] in ["0", "1", "2", "3", "4", "5"]:
-            local_facts[first_fact][2]["Age"] = temp[2]
+        temp = simple.age_required[0].split()
+        rule.local_facts[first_fact].parameters["compareOp"] = temp[1]
+        if temp[2] in {"0", "1", "2", "3", "4", "5"}:
+            rule.local_facts[first_fact].parameters["Age"] = temp[2]
         else:
-            local_facts[first_fact][2]["Age"] = "2"
-
+            rule.local_facts[first_fact].parameters["Age"] = "2"
         first_fact += 1
 
-    if type == "train":
-        fact_length += 2
+    if simple.type == "train":
+        rule.fact_length += 2
 
-        local_facts[first_fact][0] = "can-train"
-        local_facts[first_fact][2]["UnitId"] = params["Trainable"]
+        rule.local_facts[first_fact].fact_name = "can-train"
+        rule.local_facts[first_fact].parameters["UnitId"] = simple.parameters[
+            "Trainable"
+        ]
 
-        local_facts[first_fact + 1][0] = "unit-type-count"
-        local_facts[first_fact + 1][2]["compareOp"] = "<"
-        local_facts[first_fact + 1][2]["UnitId"] = params["Trainable"]
-        local_facts[first_fact + 1][2]["0|50"] = threshold
+        rule.local_facts[first_fact + 1].fact_name = "unit-type-count"
+        rule.local_facts[first_fact + 1].parameters["compareOp"] = "<"
+        rule.local_facts[first_fact + 1].parameters["UnitId"] = simple.parameters[
+            "Trainable"
+        ]
+        rule.local_facts[first_fact + 1].parameters["0|50"] = simple.threshold
+        rule.local_actions[0].action_name = "train"
+        rule.local_actions[0].parameters["Trainable"] = simple.parameters["Trainable"]
 
-        local_actions[0][0] = "train"
-        local_actions[0][1]["Trainable"] = params["Trainable"]
+    elif simple.type == "build":
+        rule.fact_length += 2
 
-    elif type == "build":
-        fact_length += 2
+        rule.local_facts[first_fact].fact_name = "can-build"
+        rule.local_facts[first_fact].parameters["BuildingId"] = simple.parameters[
+            "Buildable"
+        ]
 
-        local_facts[first_fact][0] = "can-build"
-        local_facts[first_fact][2]["BuildingId"] = params["Buildable"]
+        rule.local_facts[first_fact + 1].fact_name = "building-type-count"
+        rule.local_facts[first_fact + 1].parameters["compareOp"] = "<"
+        rule.local_facts[first_fact + 1].parameters["BuildingId"] = simple.parameters[
+            "Buildable"
+        ]
 
-        local_facts[first_fact + 1][0] = "building-type-count"
-        local_facts[first_fact + 1][2]["compareOp"] = "<"
-        local_facts[first_fact + 1][2]["BuildingId"] = params["Buildable"]
-
-        if params["Buildable"] != "farm":
-            local_facts[first_fact + 1][2]["0|50"] = threshold % 10
+        if simple.parameters["Buildable"] != "farm":
+            rule.local_facts[first_fact + 1].parameters["0|50"] = simple.threshold % 10
         else:
-            local_facts[first_fact + 1][2]["0|50"] = threshold
+            rule.local_facts[first_fact + 1].parameters["0|50"] = simple.threshold
 
-        local_actions[0][0] = "build"
-        local_actions[0][1]["Buildable"] = params["Buildable"]
+        rule.local_actions[0].action_name = "build"
+        rule.local_actions[0].parameters["Buildable"] = simple.parameters["Buildable"]
 
-    elif type == "research":
-        fact_length += 1
+    elif simple.type == "research":
+        rule.fact_length += 1
+        rule.local_facts[first_fact].fact_name = "can-research"
+        rule.local_facts[first_fact].parameters["TechId"] = simple.parameters["TechId"]
+        rule.local_actions[0].action_name = "research"
+        rule.local_actions[0].parameters["TechId"] = simple.parameters["TechId"]
 
-        local_facts[first_fact][0] = "can-research"
-        local_facts[first_fact][2]["TechId"] = params["TechId"]
-        local_actions[0][0] = "research"
-        local_actions[0][1]["TechId"] = params["TechId"]
-
-    elif type == "strategic_number":
-        fact_length += 1
-        local_facts[first_fact][0] = "true"
-        action_length = 2
-        local_actions[0][0] = "set-strategic-number"
-        local_actions[0][1]["SnId"] = params["SnId"]
-        local_actions[0][1]["SnValue"] = params["SnValue"]
-        local_actions[1][0] = "disable-self"
-
-    rule = [fact_length, action_length, age_required, local_facts, local_actions]
+    elif simple.type == "strategic_number":
+        rule.fact_length += 1
+        rule.local_facts[first_fact].fact_name = "true"
+        rule.action_length = 2
+        rule.local_actions[0].action_name = "set-strategic-number"
+        rule.local_actions[0].parameters["SnId"] = simple.parameters["SnId"]
+        rule.local_actions[0].parameters["SnValue"] = simple.parameters["SnValue"]
+        rule.local_actions[1].action_name = "disable-self"
 
     return rule
 

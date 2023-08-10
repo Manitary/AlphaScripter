@@ -84,12 +84,12 @@ class Rule:
     local_actions: list[Action]
 
     def __str__(self) -> str:
-        ans = f"\n(defrule{self.write_facts()}\n=>{_write_actions(self.local_actions)})\n"
+        ans = f"\n(defrule{self._write_facts()}\n=>{_write_actions(self.local_actions)})\n"
         if len(ans.split()) > 20:
             ans = ""
         return ans
 
-    def write_facts(self) -> str:
+    def _write_facts(self) -> str:
         pad = "...."
         ans = pad
         for i, fact in enumerate(self.local_facts):
