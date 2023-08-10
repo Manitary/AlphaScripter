@@ -2,9 +2,9 @@ import copy
 import json
 import random
 from dataclasses import dataclass
+from typing import Literal
 
 from settings import *
-from symbol import parameters
 
 OLD_PARAMETERS = {
     "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;614;615;616;617;618;619;620;621;631",
@@ -829,7 +829,7 @@ PLAYER_LIST = CLASS_LIST + BUILDABLE + TRAINABLE
 
 
 @dataclass
-class Fact:
+class GoalFact:
     fact_name: str
     parameters: dict[str, str | int]
 
@@ -847,7 +847,7 @@ class Goal:
     disable: bool
     goal_num: int
     use_goal: bool
-    used_facts: list[Fact]
+    used_facts: list[GoalFact]
     fact_count: int
 
     def __str__(self) -> str:
@@ -864,6 +864,14 @@ class Goal:
         return ans
 
 
+@dataclass
+class Fact:
+    fact_name: str
+    is_not: int
+    params: dict[str, str | int]
+    and_or: str
+
+
 def generate_goal() -> Goal:
     goal_id = random.randint(1, 40)
     value = random.randint(0, 1)
@@ -873,7 +881,7 @@ def generate_goal() -> Goal:
     fact_count = random.randint(1, 4)
 
     used_facts = [
-        Fact(random.choice(GOAL_FACTS), generate_parameters()) for _ in range(4)
+        GoalFact(random.choice(GOAL_FACTS), generate_parameters()) for _ in range(4)
     ]
     return Goal(goal_id, value, disable, goal_num, use_goal, used_facts, fact_count)
 
@@ -893,18 +901,19 @@ def mutate_goal(goal: Goal, mutation_chance: float) -> Goal:
         goal.fact_count = random.randint(1, 4)
 
     for fact in goal.used_facts:
-        fact = Fact(
+        fact = GoalFact(
             random.choice(GOAL_FACTS),
             mutate_parameters(fact.parameters, mutation_chance),
         )
 
     return goal
 
-def parse_params() -> dict[str,str]:
+
+def parse_params() -> dict[str, str]:
     with open("params.csv", "r", encoding="utf-8") as f:
         params = f.readlines()
 
-    paramdict = {x[0]: x[1] for param in params if len(x:=param.split(',')) > 1}
+    paramdict = {x[0]: x[1] for param in params if len(x := param.split(",")) > 1}
     print(paramdict)
     return paramdict
 
@@ -938,8 +947,8 @@ def generate_parameters() -> dict[str, str | int]:
     return out
 
 
-def generate_sn_values() -> dict[str, str|int]:
-    out: dict[str, str|int] = {}
+def generate_sn_values() -> dict[str, str | int]:
+    out: dict[str, str | int] = {}
     for key, mutation_rules in SN.items():
         if "|" in mutation_rules:
             out[key] = random.randint(*tuple(map(int, mutation_rules)))
@@ -950,7 +959,9 @@ def generate_sn_values() -> dict[str, str|int]:
     return out
 
 
-def mutate_sn_values(sn_values: dict[str, str|int], mutation_chance: float) -> dict[str, str|int]:
+def mutate_sn_values(
+    sn_values: dict[str, str | int], mutation_chance: float
+) -> dict[str, str | int]:
     out = copy.deepcopy(sn_values)
     for key, mutation_rules in SN.items():
         if "|" in mutation_rules:
@@ -961,15 +972,14 @@ def mutate_sn_values(sn_values: dict[str, str|int], mutation_chance: float) -> d
                 out[key] = random.choice(mutation_rules.split(";"))
     return out
 
-def generate_fact():
+
+def generate_fact() -> Fact:
     fact_name = random.choice(fact_list)
     is_not = random.randint(0, 1)
     params = generate_parameters()
     and_or = random.choice(["and", "or", "nand", "nor"])
 
-    fact = [fact_name, is_not, params, and_or]
-
-    return fact
+    return Fact(fact_name, is_not, params, and_or)
 
 
 def generate_action():
