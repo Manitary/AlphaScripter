@@ -156,16 +156,30 @@ class Simple:
 
         return ans
 
+
+@dataclass
+class PopulationCondition:
+    type: str
+    comparison: str
+    amount: int
+
+
+@dataclass
+class GameTimeCondition:
+    comparison: str
+    amount: int
+
+
 @dataclass
 class AttackRule:
     type: str
     age_required: str
     enemy_age_required: str
-    population1: tuple[str, str, int]
-    population2: tuple[str, str, int]
-    game_time: tuple[str, int]
+    population1: PopulationCondition
+    population2: PopulationCondition
+    game_time: GameTimeCondition
     retreat_unit: str
     attack_percent: int
     retreat_to: str
-    goal: int
-    use_goal: bool
+    goal: int = 1
+    use_goal: bool = False

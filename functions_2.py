@@ -14,7 +14,17 @@ from globals import (
     SN,
     TRAINABLE,
 )
-from models import Action, AttackRule, Fact, Goal, GoalFact, Rule, Simple
+from models import (
+    Action,
+    AttackRule,
+    Fact,
+    GameTimeCondition,
+    Goal,
+    GoalFact,
+    PopulationCondition,
+    Rule,
+    Simple,
+)
 from settings import *
 import settings
 
@@ -974,7 +984,7 @@ def generate_attack_rule() -> AttackRule:
         ]
     )
 
-    population1 = (
+    population1 = PopulationCondition(
         random.choice(
             [
                 "population",
@@ -988,7 +998,7 @@ def generate_attack_rule() -> AttackRule:
         random.randint(0, 200),
     )
 
-    population2 = (
+    population2 = PopulationCondition(
         random.choice(
             [
                 "population",
@@ -1002,7 +1012,7 @@ def generate_attack_rule() -> AttackRule:
         random.randint(0, 200),
     )
 
-    gametime = (
+    gametime = GameTimeCondition(
         random.choice(["<", ">", "==", "!=", "<=", ">=", ""]),
         random.randint(0, 7200),
     )
@@ -1028,35 +1038,15 @@ def generate_attack_rule() -> AttackRule:
     )
 
 
-def mutate_attack_rule(rule, mutation_chance):
-    type = rule[0]
-    age_required = rule[1]
-    enemy_age_required = rule[2]
-    population1 = rule[3]
-    population2 = rule[4]
-    gametime = rule[5]
-    attack_percent = rule[6]
-    retreat_unit = rule[7]
-    retreat_to = rule[8]
-
-    if len(rule) > 9:
-        goal = rule[9]
-        use_goal = rule[10]
-    else:
-        goal = 1
-        use_goal = False
-
+def mutate_attack_rule(rule: AttackRule, mutation_chance: float) -> AttackRule:
     if random.random() < mutation_chance:
-        type = random.choice(["Attack", "Retreat", "Retreat to"])
-
+        rule.type = random.choice(["Attack", "Retreat", "Retreat to"])
     if random.random() < mutation_chance:
-        retreat_unit = random.choice(TRAINABLE)
-
+        rule.retreat_unit = random.choice(TRAINABLE)
     if random.random() < mutation_chance:
-        retreat_to = random.choice(BUILDABLE)
-
+        rule.retreat_to = random.choice(BUILDABLE)
     if random.random() < mutation_chance:
-        age_required = random.choice(
+        rule.age_required = random.choice(
             [
                 "",
                 "current-age > 0",
@@ -1087,9 +1077,8 @@ def mutate_attack_rule(rule, mutation_chance):
                 "current-age != 3",
             ]
         )
-
     if random.random() < mutation_chance:
-        enemy_age_required = random.choice(
+        rule.enemy_age_required = random.choice(
             [
                 "",
                 "players-current-age any-enemy > 0",
@@ -1120,9 +1109,8 @@ def mutate_attack_rule(rule, mutation_chance):
                 "players-current-age any-enemy != 3",
             ]
         )
-
     if random.random() < mutation_chance:
-        population1[0] = random.choice(
+        rule.population1.type = random.choice(
             [
                 "population",
                 "civilian-population",
@@ -1132,12 +1120,11 @@ def mutate_attack_rule(rule, mutation_chance):
             ]
         )
     if random.random() < mutation_chance:
-        population1[1] = random.choice(["<", ">", "==", "!=", "<=", ">="])
+        rule.population1.comparison = random.choice(["<", ">", "==", "!=", "<=", ">="])
     if random.random() < mutation_chance:
-        population1[2] = random.randint(0, 200)
-
+        rule.population1.amount = random.randint(0, 200)
     if random.random() < mutation_chance:
-        population2[0] = random.choice(
+        rule.population2.type = random.choice(
             [
                 "population",
                 "civilian-population",
@@ -1147,40 +1134,22 @@ def mutate_attack_rule(rule, mutation_chance):
             ]
         )
     if random.random() < mutation_chance:
-        population2[1] = random.choice(["<", ">", "==", "!=", "<=", ">="])
+        rule.population2.comparison = random.choice(["<", ">", "==", "!=", "<=", ">="])
     if random.random() < mutation_chance:
-        population2[2] = random.randint(0, 200)
-
+        rule.population2.amount = random.randint(0, 200)
     if random.random() < mutation_chance:
-        gametime[0] = random.choice(["<", ">", "==", "!=", "<=", ">=", ""])
+        rule.game_time.comparison = random.choice(["<", ">", "==", "!=", "<=", ">=", ""])
     if random.random() < mutation_chance:
-        gametime[1] = random.randint(0, 7200)
-
+        rule.game_time.amount = random.randint(0, 7200)
     if random.random() < mutation_chance:
-        attack_percent = random.randint(0, 100)
-
+        rule.attack_percent = random.randint(0, 100)
     if random.random() < mutation_chance:
-        goal = random.randint(1, 40)
-
+        rule.goal = random.randint(1, 40)
     if random.random() < mutation_chance:
-        use_goal = random.choice([True, False])
+        rule.use_goal = random.choice([True, False])
 
-    if goal == False or goal == True or goal == "FALSE" or goal == "TRUE":
-        goal = 1
-
-    rule = [
-        type,
-        age_required,
-        enemy_age_required,
-        population1,
-        population2,
-        gametime,
-        attack_percent,
-        retreat_unit,
-        retreat_to,
-        goal,
-        use_goal,
-    ]
+    # if goal == False or goal == True or goal == "FALSE" or goal == "TRUE":
+    #     goal = 1
 
     return rule
 
