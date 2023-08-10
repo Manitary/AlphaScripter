@@ -1,5 +1,6 @@
-from Functions import *
-from main import *
+# from Functions import *
+# from main import *
+from functions_2 import generate_ai, mutate_ai, crossover, save_ai, export_ai
 
 # get_single_ai_data(['huns']*2,'best',list(eloDict.keys()),eloDict,3)
 
@@ -8,10 +9,10 @@ from main import *
 # ai = read_ai("best")
 
 ai = generate_ai()
-
 ab = mutate_ai(ai, 0.05)
 ab = crossover(ai, ab, 0.05)
-write_ai(ab, "test")
+# write_ai(ab, "test")
+export_ai(ab, "test")
 save_ai(ab, "test")
 
 # benchmarker("test","Shadow 3.1",7,['huns','huns'])
