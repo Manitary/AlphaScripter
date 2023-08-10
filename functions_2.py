@@ -538,7 +538,7 @@ ACTIONS = {
     "set-strategic-number": ["2", "SnId", "SnValue", "", ""],
 }
 
-SN_DICT = {
+SN = {
     "272": "0|1",
     "225": "0|3",
     "258": "0|2",
@@ -703,7 +703,7 @@ with open("resign.txt", "r", encoding="utf-8") as f:
     RESIGN_RULE = f.read()
 
 paramkeys = list(PARAMETERS.keys())
-snKeys = list(SN_DICT.keys())
+snKeys = list(SN.keys())
 fact_list = list(FACTS.keys())
 action_list = list(ACTIONS.keys())
 
@@ -938,34 +938,24 @@ def generate_parameters() -> dict[str, str | int]:
     return out
 
 
-def generate_sn_values():
-    out = {"": ""}
-
-    for i in range(len(snKeys)):
-        mutation_rules = SN_DICT[snKeys[i]]
-
+def generate_sn_values() -> dict[str, str|int]:
+    out: dict[str, str|int] = {}
+    for key, mutation_rules in SN.items():
         if "|" in mutation_rules:
-            mutation_rules = mutation_rules.split("|")
-            out[snKeys[i]] = random.randint(
-                int(mutation_rules[0]), int(mutation_rules[1])
-            )
-
+            out[key] = random.randint(*tuple(map(int, mutation_rules)))
         elif ";" in mutation_rules:
-            mutation_rules = mutation_rules.split(";")
-            out[snKeys[i]] = random.choice(mutation_rules)
-
+            out[key] = random.choice(mutation_rules.split(";"))
         else:
-            out[snKeys[i]] = SN_DICT[snKeys[i]]
-
+            out[key] = mutation_rules
     return out
 
 
 def mutate_sn_values(snValues, mutation_chance):
     out = copy.deepcopy(snValues)
 
-    for key in SN_DICT:
+    for key in SN:
         if key != "":
-            mutation_rules = SN_DICT[key]
+            mutation_rules = SN[key]
 
             if "|" in mutation_rules:
                 mutation_rules = mutation_rules.split("|")
