@@ -936,6 +936,20 @@ class Rule:
         return "....\n" + "\n".join(f"({action})" for action in self.local_actions)
 
 
+@dataclass
+class Simple:
+    type: str
+    parameters: dict[str, str | int]
+    threshold: int
+    age_required: list[str]
+    requirement: str
+    requirement_count: int
+    gametime: int
+    strategic_numbers: dict[str, str | int]
+    goal: int
+    use_goal: bool
+
+
 def generate_goal() -> Goal:
     goal_id = random.randint(1, 40)
     value = random.randint(0, 1)
@@ -1658,23 +1672,18 @@ def write_goal_action(goal_action):
     return string
 
 
-def generate_simple():
+def generate_simple() -> Simple:
     type = random.choice(
         ["train", "research", "strategic_number", "build", "build-forward"]
     )
-    # type = random.choice(['train','build','research','research'])
     goal = random.randint(1, 40)
     use_goal = random.choice([True, False])
-
     requirement = random.choice(
         TRAINABLE + BUILDABLE + PARAMETERS["TechId"].split(";") + [""]
     )
-
     params = generate_parameters()
     strategic_numbers = generate_sn_values()
-
     threshold = random.randint(0, 200)
-
     if force_castle_age_units and params["Trainable"] != "villager" and type == "train":
         age_required = ["current-age  >= 3"]
     else:
@@ -1712,8 +1721,7 @@ def generate_simple():
 
     gametime = random.randint(0, 7200)
     requirement_count = random.randint(0, 10)
-
-    return [
+    return Simple(
         type,
         params,
         threshold,
@@ -1724,7 +1732,7 @@ def generate_simple():
         strategic_numbers,
         goal,
         use_goal,
-    ]
+    )
 
 
 def mutate_simple(simple, mutation_chance):
