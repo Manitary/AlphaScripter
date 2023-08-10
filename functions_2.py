@@ -16,6 +16,7 @@ from globals import (
     TRAINABLE,
 )
 from models import (
+    AI,
     Action,
     AttackRule,
     DUCSearch,
@@ -36,8 +37,8 @@ import settings
 if allow_towers:
     PARAMETERS["Buildable"] += ";watch-tower;guard-tower;keep"
 
-with open("resign.txt", "r", encoding="utf-8") as f:
-    RESIGN_RULE = f.read()
+with open("resign.txt", "r", encoding="utf-8") as r:
+    RESIGN_RULE = r.read()
 
 
 def generate_goal() -> Goal:
@@ -312,178 +313,153 @@ def simple_to_complex(simple: Simple) -> Rule:
     return rule
 
 
-def generate_ai():
-    # print("generating")
-
-    simple_list = []
-    ai = []
-
-    if villager_preset:
+def generate_ai() -> AI:
+    simple_list: list[Simple] = []
+    if settings.villager_preset:
         # build villagers
         temp = generate_simple()
-        temp[0] = "train"
-        temp[1]["Trainable"] = "83"
-        temp[2] = 30
-        temp[3] = ["current-age  == 0"]
+        temp.type = "train"
+        temp.parameters["Trainable"] = "83"
+        temp.threshold = 30
+        temp.age_required = ["current-age == 0"]
 
         simple_list.append(temp)
 
         temp = generate_simple()
-        temp[0] = "train"
-        temp[1]["Trainable"] = "83"
-        temp[2] = 80
-        temp[3] = ["current-age  == 1"]
+        temp.type = "train"
+        temp.parameters["Trainable"] = "83"
+        temp.threshold = 80
+        temp.age_required = ["current-age == 1"]
 
         simple_list.append(temp)
 
-    for i in range(simple_count):
-        simple_list.append(generate_simple())
+    simple_list.extend([generate_simple() for _ in range(settings.simple_count)])
 
-    for i in range(ai_length):
-        ai.append(generate_rule())
+    ai = [generate_rule() for _ in range(settings.ai_length)]
+    attack_rules = [generate_attack_rule() for _ in range(settings.attack_rule_count)]
+    duc_search = [generate_duc_search() for _ in range(settings.DUC_count)]
+    duc_target = [generate_duc_target() for _ in range(settings.DUC_count)]
+    goal_rules = [generate_goal() for _ in range(settings.goal_rule_count)]
+    goal_actions = [generate_goal_action() for _ in range(settings.goal_action_count)]
 
-    attack_rules = []
-    for i in range(attack_rule_count):
-        attack_rules.append(generate_attack_rule())
-
-    DUC_search = []
-    DUC_target = []
-    for i in range(DUC_count):
-        search = generate_DUC_search()
-        target = generate_DUC_target()
-        DUC_search.append(search)
-        DUC_target.append(target)
-
-    goal_rules = []
-    for i in range(goal_rule_count):
-        goal_rules.append(generate_goal())
-
-    goal_actions = []
-    for i in range(goal_action_count):
-        goal_actions.append(generate_goal_action())
-
-    return [
+    return AI(
         simple_list,
         ai,
         attack_rules,
-        DUC_search,
-        DUC_target,
+        duc_search,
+        duc_target,
         goal_rules,
         goal_actions,
-    ]
+    )
 
 
-def mutate_ai(ai, mutation_chance):
+def mutate_ai(ai: AI, mutation_chance: float) -> AI:
     local = copy.deepcopy(ai)
 
     while local == ai:
-        remove_list = []
-        add_list = []
+        local.simples = [
+            mutate_simple(simple, mutation_chance) for simple in local.simples
+        ]
 
-        for i in range(len(ai[0])):
-            local[0][i] = mutate_simple(ai[0][i], mutation_chance)
-
-            if allow_complex:
+        new_rules: list[Rule] = []
+        if settings.allow_complex:
+            for simple in local.simples:
                 if random.random() < mutation_chance / 2:
-                    add_list.append(simple_to_complex(local[0][i]))
-                    remove_list.append(local[0][i])
+                    new_rules.append(simple_to_complex(simple))
+                    local.simples.remove(simple)
 
-        for i in range(len(remove_list)):
-            local[0].remove(remove_list[i])
-
-        for i in range(4):
+        for _ in range(4):
             if random.random() < mutation_chance:
-                s = generate_simple()
-                local[0].append(s)
+                local.simples.append(generate_simple())
 
         if random.random() < mutation_chance / 2:
-            local[0].remove(random.choice(local[0]))
+            local.simples.remove(random.choice(local.simples))
 
-        for i in range(len(ai[1])):
-            local[1][i] = mutate_rule(ai[1][i], mutation_chance)
+        local.rules = [mutate_rule(rule, mutation_chance) for rule in local.rules]
 
         if random.random() < mutation_chance / 2:
-            local[1].append(generate_rule())
-        if random.random() < mutation_chance / 2:
-            if len(local[1]) > 0:
-                local[1].remove(random.choice(local[1]))
+            local.rules.append(generate_rule())
 
-        for i in range(len(ai[2])):
-            local[2][i] = mutate_attack_rule(ai[2][i], mutation_chance)
-
-        for i in range(2):
-            if random.random() < mutation_chance:
-                local[2].append(generate_attack_rule())
-
-        if random.random() < mutation_chance:
-            if len(local[2]) > 0:
-                local[2].remove(random.choice(local[2]))
-
-        if random.random() < mutation_chance / 3:
-            random.shuffle(local[0])
-
-        if random.random() < mutation_chance / 3:
-            random.shuffle(local[1])
-
-        if random.random() < mutation_chance / 3:
-            random.shuffle(local[2])
-
-        if random.random() < mutation_chance / 3:
-            random.shuffle(local[3])
-
-        if random.random() < mutation_chance / 3:
-            random.shuffle(local[4])
-
-        if random.random() < mutation_chance / 3:
-            random.shuffle(local[5])
-
-        if random.random() < mutation_chance / 3:
-            random.shuffle(local[6])
-
-        remove_list_1 = []
-        remove_list_2 = []
-        for i in range(len(local[3])):
-            local[3][i] = mutate_DUC_search(ai[3][i], mutation_chance)
-            local[4][i] = mutate_DUC_target(ai[4][i], mutation_chance)
-            if random.random() < mutation_chance / 3:
-                remove_list_1.append(local[3][i])
-                remove_list_2.append(local[4][i])
-
+        if len(local.rules) > 0:
             if random.random() < mutation_chance / 2:
-                local[3].append(generate_DUC_search())
-                local[4].append(generate_DUC_target())
+                local.rules.remove(random.choice(local.rules))
 
-        for i in range(len(remove_list_1)):
-            local[3].remove(remove_list_1[i])
-            local[4].remove(remove_list_2[i])
+        local.attack_rules = [
+            mutate_attack_rule(attack_rule, mutation_chance)
+            for attack_rule in local.attack_rules
+        ]
 
-        remove_list = []
-        for i in range(len(local[5])):
-            local[5][i] = mutate_goal(ai[5][i], mutation_chance)
-            if random.random() < mutation_chance / 3:
-                remove_list.append(local[5][i])
-
-        for i in range(2):
-            if random.random() < mutation_chance / 2:
-                local[5].append(generate_goal())
-
-        for i in range(len(remove_list)):
-            local[5].remove(remove_list[i])
-
-        remove_list = []
-        for i in range(len(local[6])):
-            local[6][i] = mutate_goal_action(ai[6][i], mutation_chance)
-            if random.random() < mutation_chance / 3:
-                remove_list.append(local[6][i])
-
-        for i in range(4):
+        for _ in range(2):
             if random.random() < mutation_chance:
-                local[6].append(generate_goal_action())
+                local.attack_rules.append(generate_attack_rule())
 
-        for i in range(len(remove_list)):
-            local[6].remove(remove_list[i])
+        if len(local.attack_rules) > 0:
+            if random.random() < mutation_chance:
+                local.attack_rules.remove(random.choice(local.attack_rules))
 
-        local[1] = add_list + local[1]
+        if random.random() < mutation_chance / 3:
+            random.shuffle(local.simples)
+
+        if random.random() < mutation_chance / 3:
+            random.shuffle(local.rules)
+
+        if random.random() < mutation_chance / 3:
+            random.shuffle(local.attack_rules)
+
+        if random.random() < mutation_chance / 3:
+            random.shuffle(local.duc_search)
+
+        if random.random() < mutation_chance / 3:
+            random.shuffle(local.duc_target)
+
+        if random.random() < mutation_chance / 3:
+            random.shuffle(local.goal_rules)
+
+        if random.random() < mutation_chance / 3:
+            random.shuffle(local.goal_actions)
+
+        local.rules = new_rules + local.rules
+
+        local.duc_search = [
+            mutate_duc_search(search, mutation_chance) for search in local.duc_search
+        ]
+        local.duc_target = [
+            mutate_duc_target(target, mutation_chance) for target in local.duc_target
+        ]
+
+        num = len(local.duc_search)
+        randoms = [random.random() for _ in range(num)]
+        local.duc_search = [
+            s for s, x in zip(local.duc_search, randoms) if x >= mutation_chance / 3
+        ]
+        local.duc_target = [
+            t for t, x in zip(local.duc_target, randoms) if x >= mutation_chance / 3
+        ]
+        for _ in range(num):
+            if random.random() < mutation_chance / 2:
+                local.duc_search.append(generate_duc_search())
+                local.duc_target.append(generate_duc_target())
+
+        local.goal_rules = [
+            mutate_goal(goal, mutation_chance) for goal in local.goal_rules
+        ]
+        for rule in local.goal_rules:
+            if random.random() < mutation_chance / 3:
+                local.goal_rules.remove(rule)
+        for _ in range(2):
+            if random.random() < mutation_chance / 2:
+                local.goal_rules.append(generate_goal())
+
+        local.goal_actions = [
+            mutate_goal_action(goal_action, mutation_chance)
+            for goal_action in local.goal_actions
+        ]
+        for goal_action in local.goal_actions:
+            if random.random() < mutation_chance / 3:
+                local.goal_actions.remove(goal_action)
+        for _ in range(4):
+            if random.random() < mutation_chance:
+                local.goal_actions.append(generate_goal_action())
 
     return local
 
@@ -573,95 +549,103 @@ def crossover(ai_one, ai_two, mutation_chance):
     return [out1, out2, out3, out4, out5, out6, out7]
 
 
-def write_ai(ai, ai_name):
-    f = open(local_drive + ai_name + ".per", "w+")
-
+def export_ai(ai: AI, ai_name: str) -> None:
     # default = "(defrule\n(true)\n=>\n(set-strategic-number sn-cap-civilian-builders -1)\n(set-strategic-number sn-cap-civilian-gatherers 0)\n(set-strategic-number sn-cap-civilian-explorers 0)\n(set-strategic-number sn-initial-exploration-required 0)\n(set-strategic-number sn-maximum-food-drop-distance -2)\n(set-strategic-number sn-maximum-gold-drop-distance -2)\n(set-strategic-number sn-maximum-hunt-drop-distance -2)\n(set-strategic-number sn-maximum-stone-drop-distance -2)\n(set-strategic-number sn-maximum-wood-drop-distance -2)\n(set-strategic-number sn-disable-villager-garrison 3)\n(disable-self))\n\n"
+    self, enemy = (2, 1) if "self" in ai_name else (1, 2)
+    default_ai = (
+        f"(defconst selfPlayerID {self})\n(defconst enemyPlayerID {enemy})\n\n"
+        "(defrule\n(true)\n=>\n(set-strategic-number sn-cap-civilian-explorers 0)\n"
+        "(set-strategic-number sn-initial-exploration-required 10)\n(disable-self))\n\n"
+    )
+    if settings.force_house:
+        default_ai += (
+            "(defrule\n"
+            "(building-type-count-total town-center > 0)\n"
+            "(housing-headroom < 5)\n"
+            "(population-headroom > 0)\n"
+            "(can-build house)\n"
+            "=>\n(build house))\n\n"
+        )
 
-    if "self" in ai_name:
-        default = "(defconst selfPlayerID 2)\n(defconst enemyPlayerID 1)\n\n"
-    else:
-        default = "(defconst selfPlayerID 1)\n(defconst enemyPlayerID 2)\n\n"
+    if settings.force_age_up:
+        default_ai += (
+            "(defrule\n(true)\n=>\n(research 101))\n"
+            "(defrule\n(true)\n=>\n(research 102))\n\n"
+        )
 
-    default += "(defrule\n(true)\n=>\n(set-strategic-number sn-cap-civilian-explorers 0)\n(set-strategic-number sn-initial-exploration-required 10)\n(disable-self))\n\n"
-    # default = ""
+    if settings.force_imperial_age:
+        default_ai += "(defrule\n(true)\n=>\n(research 103))\n"
 
-    if force_house:
-        default += "(defrule \n(building-type-count-total town-center > 0)\n(housing-headroom < 5)\n(population-headroom > 0)\n(can-build house)\n=>\n(build house))\n\n"
+    if settings.force_barracks:
+        default_ai += (
+            "(defrule\n"
+            "(can-build barracks)\n"
+            "(building-type-count barracks < 1)\n"
+            "=>\n(build barracks)\n)\n\n"
+        )
 
-    if force_age_up:
-        default += "(defrule\n(true)\n=>\n(research 101))\n(defrule\n(true)\n=>\n(research 102))\n\n"
+    if settings.force_resign:
+        default_ai += "\n" + RESIGN_RULE + "\n"
+        # ans += (
+        #     "(defrule\n"
+        #     "(unit-type-count villager < 15)\n"
+        #     "(current-age >= feudal-age)\n"
+        #     "=>\n\t(resign)\n\t(disable-self))\n\n"
+        #     "(defrule\n"
+        #     "(building-type-count town-center < 1)\n"
+        #     "(current-age < .feudal-age)\n"
+        #     "=>\n\t(resign)\n\t(disable-self))\n\n"
+        # )
 
-    if force_imperial_age:
-        default += "(defrule\n(true)\n=>\n(research 103))\n"
+    if settings.force_scout:
+        default_ai += (
+            "\n(defrule\n(true)\n"
+            "=>\n\t(set-strategic-number sn-total-number-explorers 1)"
+            "\n\t(set-strategic-number sn-number-explore-groups 1)"
+            "\n\t(up-send-scout 101 1)"
+            "\n\t(disable-self)\n)\n\n"
+        )
 
-    if force_barracks:
-        default += "(defrule\n	(can-build barracks)\n	(building-type-count barracks < 1)\n=>\n	(build barracks)\n)\n\n"
-
-    if force_resign:
-        # default += "(defrule\n\t(unit-type-count villager < 15)\n\t(current-age >= feudal-age)\n=>\n\t(resign)\n\t(disable-self))\n\n"
-        # default += "(defrule\n\t(building-type-count town-center < 1)\n\t(current-age < feudal-age)\n=>\n\t(resign)\n\t(disable-self))\n\n"
-        default += "\n" + RESIGN_RULE + "\n"
-
-    if force_scout:
-        default += "\n(defrule\n\t(true)\n=>\n\t(set-strategic-number sn-total-number-explorers 1)\n\t(set-strategic-number sn-number-explore-groups 1)\n\t(up-send-scout 101 1)\n\t(disable-self)\n)\n\n"
-
-    f.write(default)
-
-    for i in range(len(ai[5])):
-        f.write(str(ai[5][i]))  # ai[5][i] is a Goal object
-
-    for i in range(len(ai[0])):
-        c = str(ai[0][i])  # ai[0][i] is a Simple object
-        f.write(c)
-
-    for i in range(len(ai[6])):
-        f.write(str(ai[6][i]))  # ai[6][i] is a GoalAction object
-
-    if allow_attack_rules:
-        for i in range(len(ai[2])):
-            c = str(ai[2][i])  # ai[2][i] is an AttackRule object
-            f.write(c)
-
-    if allow_DUC:
-        for i in range(len(ai[3])):
-            c = str(ai[3][i])  # ai[3][i] is a DUCSearch object
-            f.write(c)
-            c = str(ai[4][i])  # ai[4][i] is a DUCTarget object
-            f.write(c)
-
-    if allow_complex:
-        for i in range(len(ai[1])):
-            c = str(ai[1][i])  # ai[1][i] is a Rule object
-            f.write(c)
-
-    f.close()
+    with open(settings.local_drive + ai_name + ".per", "w", encoding="utf-8") as f:
+        f.write(default_ai)
+        for rule in ai.goal_rules:
+            f.write(str(rule))
+        for simple in ai.simples:
+            f.write(str(simple))
+        for goal_action in ai.goal_actions:
+            f.write(str(goal_action))
+        if settings.allow_attack_rules:
+            for attack_rule in ai.attack_rules:
+                f.write(str(attack_rule))
+        if settings.allow_DUC:
+            for search, target in zip(ai.duc_search, ai.duc_target):
+                f.write(str(search))
+                f.write(str(target))
+        if settings.allow_complex:
+            for rule in ai.rules:
+                f.write(str(rule))
 
 
-def save_ai(ai, file):
+def save_ai(ai: AI, file_name: str) -> None:
+    # ! make AI objects exportable in JSON format
+    temp = {"lazy": ai}
     saved = False
-
     while not saved:
         try:
-            temp = {"lazy": ai}
-
-            with open("AI/" + file + ".txt", "w+") as outfile:
+            with open("AI/" + file_name + ".txt", "w+", encoding="utf-8") as outfile:
                 json.dump(temp, outfile)
-
-            saved = True
-
         except KeyboardInterrupt:
             print("saving!")
             saved = False
+        else:
+            saved = True
 
 
-def read_ai(file):
-    with open("AI/" + file + ".txt") as json_file:
+def read_ai(file_name: str) -> AI:
+    # ! make AI objects exportable in JSON format
+    with open("AI/" + file_name + ".txt", encoding="utf-8") as json_file:
         data = json.load(json_file)
-
-    out = data["lazy"]
-
-    return out
+    return data["lazy"]
 
 
 def generate_goal_action() -> GoalAction:

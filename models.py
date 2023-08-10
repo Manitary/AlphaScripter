@@ -75,6 +75,7 @@ class Action:
 def _write_actions(actions: list[Action]) -> str:
     return "....\n" + "\n".join(f"({action})" for action in actions)
 
+
 @dataclass
 class Rule:
     fact_length: int
@@ -108,6 +109,7 @@ class Rule:
             if fact.is_not:
                 ans += ")"
         return ans
+
 
 @dataclass
 class Simple:
@@ -367,3 +369,14 @@ class GoalAction:
         ans += "".join((f"\n\t(goal {g} {v})") for g, v in zip(self.goals, self.values))
         ans += f"\n=>\n\t{_write_actions(self.actions)})\n\n"
         return ans
+
+
+@dataclass
+class AI:
+    simples: list[Simple]
+    rules: list[Rule]
+    attack_rules: list[AttackRule]
+    duc_search: list[DUCSearch]
+    duc_target: list[DUCTarget]
+    goal_rules: list[Goal]
+    goal_actions: list[GoalAction]
