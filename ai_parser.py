@@ -3,46 +3,182 @@ import re
 import pickle
 from dataclasses import dataclass, field
 
-fact_names = {'attack-soldier-count', 'building-available', 'building-count', 'building-count-total',
-              'building-type-count', 'building-type-count-total', 'can-afford-building', 'can-afford-complete-wall',
-              'can-afford-research', 'can-afford-unit', 'can-build', 'can-build-with-escrow', 'can-build-gate',
-              'can-build-gate-with-escrow', 'can-build-wall', 'can-build-wall-with-escrow', 'can-buy-commodity',
-              'can-research', 'can-research-with-escrow', 'can-sell-commodity', 'can-spy', 'can-spy-with-escrow',
-              'can-train', 'can-train-with-escrow', 'civilian-population', 'civ-selected', 'commodity-buying-price',
-              'commodity-selling-price', 'current-age', 'current-age-time', 'current-score', 'death-match-game',
-              'defend-soldier-count', 'defend-warboat-count', 'difficulty', 'doctrine', 'dropsite-min-distance',
-              'enemy-buildings-in-town', 'enemy-captured-relics', 'escrow-amount', 'event-detected', 'FALSE',
-              'food-amount', 'game-time', 'game-type', 'gate-count', 'goal', 'gold-amount', 'hold-koh-ruin',
-              'hold-relics', 'housing-headroom', 'idle-farm-count', 'map-size', 'map-type', 'military-population',
-              'player-computer', 'player-human', 'player-in-game', 'player-number', 'player-resigned', 'player-valid',
-              'players-building-count', 'players-building-type-count', 'players-civ', 'players-civilian-population',
-              'players-current-age', 'players-current-age-time', 'players-military-population', 'players-population',
-              'players-score', 'players-stance', 'players-unit-count', 'players-unit-type-count', 'population',
-              'population-cap', 'population-headroom', 'random-number', 'research-available', 'research-completed',
-              'resource-found', 'shared-goal', 'sheep-and-forage-too-far', 'soldier-count', 'stance-toward',
-              'starting-age', 'starting-resources', 'stone-amount', 'strategic-number', 'taunt-detected',
-              'timer-triggered', 'town-under-attack', 'TRUE', 'unit-available', 'unit-count', 'unit-count-total',
-              'unit-type-count', 'unit-type-count-total', 'victory-condition', 'wall-completed-percentage',
-              'wall-invisible-percentage', 'warboat-count', 'wood-amount', 'up-add-object-by-id', 'up-allied-goal',
-              'up-allied-resource-amount', 'up-allied-sn', 'up-attacker-class', 'up-building-type-in-town',
-              'up-can-build', 'up-can-build-line', 'up-can-research', 'up-can-search', 'up-can-train',
-              'up-compare-const', 'up-compare-flag', 'up-compare-goal', 'up-compare-sn', 'up-compare-text',
-              'up-defender-count', 'up-enemy-buildings-in-town', 'up-enemy-units-in-town', 'up-enemy-villagers-in-town',
-              'up-find-remote', 'up-find-resource', 'up-find-status-local', 'up-find-status-remote',
-              'up-gaia-type-count', 'up-gaia-type-count-total', 'up-get-fact', 'up-get-fact-max', 'up-get-fact-min',
-              'up-get-fact-sum', 'up-get-focus-fact', 'up-get-object-data', 'up-get-object-target-data',
-              'up-get-player-fact', 'up-get-point-contains', 'up-get-target-fact', 'up-group-size',
-              'up-idle-unit-count', 'up-modify-goal', 'up-object-data', 'up-object-target-data', 'up-object-type-count',
-              'up-object-type-count-total', 'up-path-distance', 'up-pending-objects', 'up-pending-placement',
-              'up-player-distance', 'up-players-in-game', 'up-point-contains', 'up-point-distance',
-              'up-point-elevation', 'up-point-explored', 'up-point-terrain', 'up-point-zone', 'up-projectile-detected',
-              'up-projectile-target', 'up-remaining-boar-amount', 'up-research-status', 'up-resource-amount',
-              'up-resource-percent', 'up-set-target-by-id', 'up-set-target-object', 'up-timer-status',
-              'up-train-site-ready', 'up-unit-type-in-town', 'up-villager-type-in-town', 'up-allied-resource-percent',
-              'up-find-local'}
+fact_names = {
+    "attack-soldier-count",
+    "building-available",
+    "building-count",
+    "building-count-total",
+    "building-type-count",
+    "building-type-count-total",
+    "can-afford-building",
+    "can-afford-complete-wall",
+    "can-afford-research",
+    "can-afford-unit",
+    "can-build",
+    "can-build-with-escrow",
+    "can-build-gate",
+    "can-build-gate-with-escrow",
+    "can-build-wall",
+    "can-build-wall-with-escrow",
+    "can-buy-commodity",
+    "can-research",
+    "can-research-with-escrow",
+    "can-sell-commodity",
+    "can-spy",
+    "can-spy-with-escrow",
+    "can-train",
+    "can-train-with-escrow",
+    "civilian-population",
+    "civ-selected",
+    "commodity-buying-price",
+    "commodity-selling-price",
+    "current-age",
+    "current-age-time",
+    "current-score",
+    "death-match-game",
+    "defend-soldier-count",
+    "defend-warboat-count",
+    "difficulty",
+    "doctrine",
+    "dropsite-min-distance",
+    "enemy-buildings-in-town",
+    "enemy-captured-relics",
+    "escrow-amount",
+    "event-detected",
+    "FALSE",
+    "food-amount",
+    "game-time",
+    "game-type",
+    "gate-count",
+    "goal",
+    "gold-amount",
+    "hold-koh-ruin",
+    "hold-relics",
+    "housing-headroom",
+    "idle-farm-count",
+    "map-size",
+    "map-type",
+    "military-population",
+    "player-computer",
+    "player-human",
+    "player-in-game",
+    "player-number",
+    "player-resigned",
+    "player-valid",
+    "players-building-count",
+    "players-building-type-count",
+    "players-civ",
+    "players-civilian-population",
+    "players-current-age",
+    "players-current-age-time",
+    "players-military-population",
+    "players-population",
+    "players-score",
+    "players-stance",
+    "players-unit-count",
+    "players-unit-type-count",
+    "population",
+    "population-cap",
+    "population-headroom",
+    "random-number",
+    "research-available",
+    "research-completed",
+    "resource-found",
+    "shared-goal",
+    "sheep-and-forage-too-far",
+    "soldier-count",
+    "stance-toward",
+    "starting-age",
+    "starting-resources",
+    "stone-amount",
+    "strategic-number",
+    "taunt-detected",
+    "timer-triggered",
+    "town-under-attack",
+    "TRUE",
+    "unit-available",
+    "unit-count",
+    "unit-count-total",
+    "unit-type-count",
+    "unit-type-count-total",
+    "victory-condition",
+    "wall-completed-percentage",
+    "wall-invisible-percentage",
+    "warboat-count",
+    "wood-amount",
+    "up-add-object-by-id",
+    "up-allied-goal",
+    "up-allied-resource-amount",
+    "up-allied-sn",
+    "up-attacker-class",
+    "up-building-type-in-town",
+    "up-can-build",
+    "up-can-build-line",
+    "up-can-research",
+    "up-can-search",
+    "up-can-train",
+    "up-compare-const",
+    "up-compare-flag",
+    "up-compare-goal",
+    "up-compare-sn",
+    "up-compare-text",
+    "up-defender-count",
+    "up-enemy-buildings-in-town",
+    "up-enemy-units-in-town",
+    "up-enemy-villagers-in-town",
+    "up-find-remote",
+    "up-find-resource",
+    "up-find-status-local",
+    "up-find-status-remote",
+    "up-gaia-type-count",
+    "up-gaia-type-count-total",
+    "up-get-fact",
+    "up-get-fact-max",
+    "up-get-fact-min",
+    "up-get-fact-sum",
+    "up-get-focus-fact",
+    "up-get-object-data",
+    "up-get-object-target-data",
+    "up-get-player-fact",
+    "up-get-point-contains",
+    "up-get-target-fact",
+    "up-group-size",
+    "up-idle-unit-count",
+    "up-modify-goal",
+    "up-object-data",
+    "up-object-target-data",
+    "up-object-type-count",
+    "up-object-type-count-total",
+    "up-path-distance",
+    "up-pending-objects",
+    "up-pending-placement",
+    "up-player-distance",
+    "up-players-in-game",
+    "up-point-contains",
+    "up-point-distance",
+    "up-point-elevation",
+    "up-point-explored",
+    "up-point-terrain",
+    "up-point-zone",
+    "up-projectile-detected",
+    "up-projectile-target",
+    "up-remaining-boar-amount",
+    "up-research-status",
+    "up-resource-amount",
+    "up-resource-percent",
+    "up-set-target-by-id",
+    "up-set-target-object",
+    "up-timer-status",
+    "up-train-site-ready",
+    "up-unit-type-in-town",
+    "up-villager-type-in-town",
+    "up-allied-resource-percent",
+    "up-find-local",
+}
 
 
 # ========== Utility Functions ============
+
 
 def dir_exists(path: str, raise_exception: bool = False) -> bool:
     if os.path.isdir(path):
@@ -91,7 +227,7 @@ def inside_outer_parentheses(string: str):
 
 # =========================================
 
-operators = {"and": "&", "or": "|", "not": '#', "nand": '$', "nor": '@'}
+operators = {"and": "&", "or": "|", "not": "#", "nand": "$", "nor": "@"}
 
 
 @dataclass
@@ -124,7 +260,9 @@ class Simple(FactBase):
                 self.params = self.__get_params(args)
         if isinstance(params, (list, tuple)):
             if len(params) > 5:
-                raise Exception("A Simple only take a name and a maximum of 4 arguments.")
+                raise Exception(
+                    "A Simple only take a name and a maximum of 4 arguments."
+                )
             self.name = params[0]
             self.params = self.__get_params(list(params)[1:])
 
@@ -138,16 +276,22 @@ class Simple(FactBase):
         if params is None:
             return None
         # If the params passed through are a list or tuple, we just use that one.
-        if isinstance(params, list) or isinstance(params, tuple) or isinstance(params, set):
+        if (
+            isinstance(params, list)
+            or isinstance(params, tuple)
+            or isinstance(params, set)
+        ):
             if len(params) > 4:
                 raise Exception("Cannot create Simple with more than 4 parameters!")
             return [str(x) for x in params]
-        raise Exception("Arguments passed to the Simple init should be either a single list or multiple int and string")
+        raise Exception(
+            "Arguments passed to the Simple init should be either a single list or multiple int and string"
+        )
 
     def __str__(self):
         string = f"({self.name} "
         if self.params:
-            string += ' '.join(self.params[:self.relevant_length])
+            string += " ".join(self.params[: self.relevant_length])
 
         return string + ")"
 
@@ -167,10 +311,12 @@ class Complex(FactBase):
         self.set_depth(0)  # Set the depths recursively
 
     def __str__(self):
-        name_tabs = '\t' * (1 if len(self.name) > 2 else 2)
+        name_tabs = "\t" * (1 if len(self.name) > 2 else 2)
         result = f"({self.name}{name_tabs}{self.param1}"
         if self.param2:
-            tabs = '\t' * (self.param2.depth * 2 + 1)  # The plus 1 is because every rule has every line indented 1 tab
+            tabs = "\t" * (
+                self.param2.depth * 2 + 1
+            )  # The plus 1 is because every rule has every line indented 1 tab
             result += f"\n{tabs}{self.param2}"
         return result + ")"
 
@@ -189,8 +335,14 @@ class Rule:
     actions_length: int
     comment_unused: bool  # If this is True, during printing, this rule will comment out the 'unused' actions and facts
 
-    def __init__(self, facts: list[FactBase], actions: list, facts_length: int = None, actions_length: int = None,
-                 comment_unused: bool = False):
+    def __init__(
+        self,
+        facts: list[FactBase],
+        actions: list,
+        facts_length: int = None,
+        actions_length: int = None,
+        comment_unused: bool = False,
+    ):
         if not facts:
             raise Exception("Cannot create a rule without any facts!")
         elif not actions:
@@ -201,15 +353,23 @@ class Rule:
         self.actions = actions
 
         if facts_length is not None and facts_length < 0:
-            print(f"Warning! Facts length cannot be smaller than zero. Defaulting to None.")
+            print(
+                f"Warning! Facts length cannot be smaller than zero. Defaulting to None."
+            )
             facts_length = None
 
         if actions_length is not None and (actions_length < 0 or actions_length > 4):
-            print(f"Warning! Action length cannot be smaller than zero or greater than 4.")
+            print(
+                f"Warning! Action length cannot be smaller than zero or greater than 4."
+            )
             actions_length = None
 
-        self.facts_length = facts_length if facts_length is not None else len(self.facts)
-        self.actions_length = actions_length if actions_length is not None else len(self.actions)
+        self.facts_length = (
+            facts_length if facts_length is not None else len(self.facts)
+        )
+        self.actions_length = (
+            actions_length if actions_length is not None else len(self.actions)
+        )
         self.comment_unused = comment_unused
 
     def get_facts(self, depth: int = None):
@@ -224,15 +384,19 @@ class Rule:
 
         if self.comment_unused:
             for index, fact in enumerate(self.facts):
-                string += f"{index:{';' if index >= self.facts_length else ''}\t}{fact}\n"
+                string += (
+                    f"{index:{';' if index >= self.facts_length else ''}\t}{fact}\n"
+                )
             string += "=>\n"
             for index, action in enumerate(self.actions):
-                string += f"{index:{';' if index >= self.actions_length else ''}\t}{action}\n"
+                string += (
+                    f"{index:{';' if index >= self.actions_length else ''}\t}{action}\n"
+                )
         else:
-            for fact in self.primary_facts[:self.facts_length]:
+            for fact in self.primary_facts[: self.facts_length]:
                 string += f"\t{fact}\n"
             string += "=>\n"
-            for action in self.actions[:self.actions_length]:
+            for action in self.actions[: self.actions_length]:
                 string += f"\t{action}\n"
 
         string += ")"
@@ -244,8 +408,10 @@ class Rule:
 
 class AIParser:
     @staticmethod
-    def read_single(path: str = "C:\\Program Files\\Microsoft Games\\age of empires ii\\Ai\\Alpha.per",
-                    raise_exception: bool = True):
+    def read_single(
+        path: str = "C:\\Program Files\\Microsoft Games\\age of empires ii\\Ai\\Alpha.per",
+        raise_exception: bool = True,
+    ):
         """
         Read a single .per file and return the AI.
 
@@ -261,7 +427,9 @@ class AIParser:
                 ai = open(path, "rb")
                 return pickle.load(ai)
             elif raise_exception:
-                raise Exception(f"Cannot read from {path}. The file is not a .per file.")
+                raise Exception(
+                    f"Cannot read from {path}. The file is not a .per file."
+                )
         elif raise_exception:
             raise Exception(f"Cannot read from {path}. No file found at that path.")
         return None
@@ -302,13 +470,17 @@ class AIParser:
                 found.add(name)
 
         if len(found) != len(names):
-            print(f"We did not find all the AI's you were looking for: \n Query={names} \n Found={found}.")
+            print(
+                f"We did not find all the AI's you were looking for: \n Query={names} \n Found={found}."
+            )
 
         return result
 
     @staticmethod
     def write_single(ai, target_directory, pickled: bool = True) -> bool:
-        if not dir_exists(target_directory, raise_exception=True) or not isinstance(ai, AI):
+        if not dir_exists(target_directory, raise_exception=True) or not isinstance(
+            ai, AI
+        ):
             print(f"Warning! Writing AI {ai} failed.")
             return False
         if pickled:
@@ -325,11 +497,13 @@ class AI:
         self.parent_directory, self.name = os.path.split(path)
         self.name = self.name.removesuffix(".per")
         # Whether this AI is visible in the selection dropdown in-game
-        self.visible = os.path.isfile(os.path.join(self.parent_directory, (self.name + ".ai")))
+        self.visible = os.path.isfile(
+            os.path.join(self.parent_directory, (self.name + ".ai"))
+        )
         self.raw_content = read_file_raw(path)
-        self.simple_indicator = '*'
-        self.complex_indicator = '%'
-        self.operators = {"and": "&", "or": "|", "not": '#', "nand": '$', "nor": '@'}
+        self.simple_indicator = "*"
+        self.complex_indicator = "%"
+        self.operators = {"and": "&", "or": "|", "not": "#", "nand": "$", "nor": "@"}
         self.operators_inverse = dict()
         for operator_name, operator_symbol in self.operators.items():
             self.operators_inverse[operator_symbol] = operator_name
@@ -341,10 +515,12 @@ class AI:
     def __repair_path(path: str) -> str:
         if os.path.isfile(path) and path.endswith(".per"):
             return path
-        raise Exception(f"Cannot instance AI with incorrect path {path}. \n There could be a few reasons for this. \n"
-                        f"1. The path specified does not reference to a valid location / file. \n"
-                        f"2. The path specified does not reference to a .per file but some type of file. \n"
-                        f"3. Between pickling and unpickling this AI, the corresponding .per file has been deleted.")
+        raise Exception(
+            f"Cannot instance AI with incorrect path {path}. \n There could be a few reasons for this. \n"
+            f"1. The path specified does not reference to a valid location / file. \n"
+            f"2. The path specified does not reference to a .per file but some type of file. \n"
+            f"3. Between pickling and unpickling this AI, the corresponding .per file has been deleted."
+        )
 
     def _parse_raw_content(self, content):
         constants = dict()
@@ -374,7 +550,9 @@ class AI:
 
             elif line.startswith("(load"):  # We need to load a different file as well!
                 extra_file = line.split(' "')[1].removesuffix('")').strip()
-                loaded_raw_content = read_file_raw(os.path.join(self.parent_directory, (extra_file + ".per")))
+                loaded_raw_content = read_file_raw(
+                    os.path.join(self.parent_directory, (extra_file + ".per"))
+                )
                 loaded, _ = self._parse_raw_content(loaded_raw_content)
                 constants.update(loaded)
 
@@ -415,7 +593,7 @@ class AI:
         fact_lines = lines[:splitter_index]
         facts = self._lines_to_facts(fact_lines)
         # TODO parse actions correctly
-        action_lines = lines[splitter_index + 1:]
+        action_lines = lines[splitter_index + 1 :]
         actions = self._lines_to_actions(action_lines)
         return Rule(facts, actions)
 
@@ -435,8 +613,12 @@ class AI:
 
     def _lines_to_facts(self, lines: list[str]):
         string = "".join(lines)
-        string = re.sub(r"[\s\t\n\r]*\([\s\t\n\r]*", "(", string)  # Remove all irrelevant whitespace
-        string = re.sub(r"[\s\t\n\r]*\)[\s\t\n\r]*", ")", string)  # Remove all irrelevant whitespace
+        string = re.sub(
+            r"[\s\t\n\r]*\([\s\t\n\r]*", "(", string
+        )  # Remove all irrelevant whitespace
+        string = re.sub(
+            r"[\s\t\n\r]*\)[\s\t\n\r]*", ")", string
+        )  # Remove all irrelevant whitespace
 
         # Replace all operator keywords for symbols
         for operator, value in self.operators.items():
@@ -455,13 +637,19 @@ class AI:
         while match:
             depth = string.count("(", 0, match.start())
             depth -= string.count(")", 0, match.start())
-            simple_as_list = match[0][1:-1].split()  # Remove the parenthesis TODO Maybe remove using regex.
+            simple_as_list = match[0][
+                1:-1
+            ].split()  # Remove the parenthesis TODO Maybe remove using regex.
             simples.append(Simple(simple_as_list))
-            string = string.replace(match[0], f"({self.simple_indicator}{len(simples) - 1})")
+            string = string.replace(
+                match[0], f"({self.simple_indicator}{len(simples) - 1})"
+            )
             if depth == 0:
                 without_globals = without_globals.replace(match[0], "")
             else:
-                without_globals = without_globals.replace(match[0], f"({self.simple_indicator}{len(simples) - 1})")
+                without_globals = without_globals.replace(
+                    match[0], f"({self.simple_indicator}{len(simples) - 1})"
+                )
             match = re.search(pattern, string)
         return simples, string, without_globals
 
@@ -476,7 +664,9 @@ class AI:
         while match:
             s = match[0]
             complexes.append(self.string_to_complex(s, simples, complexes))
-            string = string.replace(match[0], f"({self.complex_indicator}{len(complexes) - 1})")
+            string = string.replace(
+                match[0], f"({self.complex_indicator}{len(complexes) - 1})"
+            )
             match = re.search(pattern, string)
         return complexes
 
@@ -486,29 +676,43 @@ class AI:
         # The operator symbol, followed by the simple/complex indicator and then the index
         end = string.find(")")
         index1 = int(string[3:end])
-        param1 = simples[index1] if (string[2] == self.simple_indicator) else complexes[index1]
-        if string[0] == self.operators['not']:
+        param1 = (
+            simples[index1]
+            if (string[2] == self.simple_indicator)
+            else complexes[index1]
+        )
+        if string[0] == self.operators["not"]:
             return Complex(name="not", param1=param1)
 
         elif string[0] in self.operators.values():
             start = string.rfind("(")
             end = string.rfind(")")
             index2 = int(string[7:end])
-            param2 = simples[index2] if (string[start + 1] == self.simple_indicator) else complexes[index2]
-            return Complex(name=self.operators_inverse[string[0]], param1=param1, param2=param2)
+            param2 = (
+                simples[index2]
+                if (string[start + 1] == self.simple_indicator)
+                else complexes[index2]
+            )
+            return Complex(
+                name=self.operators_inverse[string[0]], param1=param1, param2=param2
+            )
 
         raise Exception(f"{string[0]} is not a valid operator symbol!")
 
     def write(self, target_directory: str = None):
         destination: str = ""
-        if target_directory is not None and dir_exists(target_directory, raise_exception=True):
+        if target_directory is not None and dir_exists(
+            target_directory, raise_exception=True
+        ):
             destination = os.path.join(target_directory, self.name + ".per")
         elif file_exists(self.path, raise_exception=True):
             destination = self.path
         else:
-            raise Exception(f"AI {self.name} couldn't write its content to {destination}, destination doesn't exist!")
+            raise Exception(
+                f"AI {self.name} couldn't write its content to {destination}, destination doesn't exist!"
+            )
 
-        with open(destination, 'w') as file:
+        with open(destination, "w") as file:
             # Write constants
             for constant_name, constant_value in self.constants.items():
                 file.write(f"(defconst {constant_name} {constant_value}) \n")
@@ -516,6 +720,7 @@ class AI:
             # Write rules
             for rule in self.rules:
                 file.write(str(rule) + "\n\n")
+
 
 # ai_path = "C:\\Program Files\\Microsoft Games\\age of empires ii\\Ai"
 # example_path = "C:\\Program Files\\Microsoft Games\\age of empires ii\\Ai\\Alpha.per"
