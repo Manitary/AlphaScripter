@@ -950,27 +950,16 @@ def generate_sn_values() -> dict[str, str|int]:
     return out
 
 
-def mutate_sn_values(snValues, mutation_chance):
-    out = copy.deepcopy(snValues)
-
-    for key in SN:
-        if key != "":
-            mutation_rules = SN[key]
-
-            if "|" in mutation_rules:
-                mutation_rules = mutation_rules.split("|")
-                if random.random() < mutation_chance:
-                    out[key] = str(
-                        random.randint(int(mutation_rules[0]), int(mutation_rules[1]))
-                    )
-
-            elif ";" in mutation_rules:
-                mutation_rules = mutation_rules.split(";")
-                if random.random() < mutation_chance:
-                    out[key] = random.choice(mutation_rules)
-
+def mutate_sn_values(sn_values: dict[str, str|int], mutation_chance: float) -> dict[str, str|int]:
+    out = copy.deepcopy(sn_values)
+    for key, mutation_rules in SN.items():
+        if "|" in mutation_rules:
+            if random.random() < mutation_chance:
+                out[key] = random.randint(*tuple(map(int, mutation_rules)))
+        elif ";" in mutation_rules:
+            if random.random() < mutation_chance:
+                out[key] = random.choice(mutation_rules.split(";"))
     return out
-
 
 def generate_fact():
     fact_name = random.choice(fact_list)
