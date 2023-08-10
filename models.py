@@ -291,3 +291,65 @@ class DUCSearch:
         ans += f"\t(up-create-group 0 0 c: {self.group_id}))\n"
 
         return ans
+
+
+@dataclass
+class DUCTarget:
+    selected: str
+    selected_max: int
+    used_filters: int
+    filters: list[Filter]
+    group_id: int
+    action: int
+    position: int
+    targeted_player: int
+    target_position: bool
+    formation: str
+    stance: int
+    timer_id: int
+    timer_time: int
+    goal: int = 1
+    use_goal: bool = False
+
+    def __str__(self) -> str:
+        used_const = "enemyPlayerID" if self.targeted_player == 2 else "selfPlayerID"
+        ans = (
+            "\n(defrule\n\t(true)\n=>\n\t(enable-timer "
+            f"{self.timer_id} {self.timer_time})\n\t(disable-self))\n"
+        )
+        ans += (
+            "\n(defrule\n\t(true)\n=>"
+            "\n\t(up-full-reset-search)\n\t(up-reset-filters)\n\t(set-strategic-number 251 "
+            f"{used_const})\n\t(set-strategic-number 249 {used_const}))\n"
+            "\n(defrule\n\t(true)\n=>"
+            f"\n\t(up-get-group-size c: {self.group_id} 51)"
+            f"\n\t(up-set-group 1 c: {self.group_id})\n"
+        )
+        if not self.target_position:
+            ans += f"\t(up-find-remote c: {self.selected} c: {self.selected_max}))\n\n"
+            if self.used_filters:
+                ans += "\n(defrule\n\t(true)\n=>\n"
+                ans += "".join(
+                    [
+                        f"\t(up-remove-objects 2 {f})\n"
+                        for i, f in enumerate(self.filters)
+                        if i < self.used_filters
+                    ]
+                )
+        ans += ")"
+        ans += f"\n(defrule\n\t(timer-triggered {self.timer_id})"
+        if self.goal:
+            ans += f"\n\t(goal {self.goal} 1)"
+        ans += "\n\t(up-compare-goal 51 > 0)\n=>\n\t"
+        ans += (
+            f"(up-get-point {self.position} 52)\n\t(up-target-point 52"
+            if self.target_position
+            else "(up-target-objects 0"
+        )
+        ans += f" {self.action} {self.formation} {self.stance})"
+        ans += (
+            f"\n\t(enable-timer {self.timer_id} {self.timer_time}))\n\n"
+            "(defrule\n\t(true)\n\t=>\n\t(up-full-reset-search)\n\t(up-reset-filters)\n\t"
+            "(set-strategic-number 251 enemyPlayerID)\n\t(set-strategic-number 249 enemyPlayerID))"
+        )
+        return ans

@@ -18,6 +18,7 @@ from models import (
     Action,
     AttackRule,
     DUCSearch,
+    DUCTarget,
     Fact,
     Filter,
     GameTimeCondition,
@@ -1206,61 +1207,53 @@ def mutate_duc_search(search: DUCSearch, mutation_chance: float) -> DUCSearch:
             search.self_selected_max += random.randint(-5, 5)
     if random.random() < mutation_chance:
         search.used_filters = random.randint(0, 5)
-    for filter in search.filters:
+    for search_filter in search.filters:
         if random.random() < mutation_chance:
-            filter.object = random.randint(-1, 84)
+            search_filter.object = random.randint(-1, 84)
         if random.random() < mutation_chance:
-            filter.compare = random.choice(SIMPLE_COMPARE)
+            search_filter.compare = random.choice(SIMPLE_COMPARE)
         if random.random() < mutation_chance:
-            filter.value = random.randint(-5, 100)
+            search_filter.value = random.randint(-5, 100)
         else:
-            filter.value += random.randint(-5, 5)
+            search_filter.value += random.randint(-5, 5)
     if random.random() < mutation_chance:
         search.group_id = random.randint(0, 9)
 
     return search
 
 
-def generate_DUC_target():
+def generate_duc_target() -> DUCTarget:
     selected = random.choice(PLAYER_LIST)
     selected_max = random.randint(0, 40)
-
     used_filters = random.randint(0, 5)
-
-    filters = []
-
-    for i in range(7):
-        filter_object = random.randint(-1, 84)
-        filter_compare = random.choice(SIMPLE_COMPARE)
-        filter_value = random.randint(-5, 100)
-
-        filters.append([filter_object, filter_compare, filter_value])
-
+    filters = [
+        Filter(
+            random.randint(-1, 84),
+            random.choice(SIMPLE_COMPARE),
+            random.randint(-5, 100),
+        )
+        for _ in range(7)
+    ]
     group_id = random.randint(0, 9)
-
     action = random.randint(0, 20)
-    positon = random.randint(0, 13)
-
+    position = random.randint(0, 13)
     targeted_player = random.randint(1, 2)
     target_position = random.choice([True, False])
-
     formation = random.choice(FORMATIONS)
     stance = random.randint(-1, 3)
-
     timer_id = random.randint(1, 50)
     timer_time = random.randint(0, 2000)
-
     goal = random.randint(1, 40)
     use_goal = random.choice([True, False])
 
-    return [
+    return DUCTarget(
         selected,
         selected_max,
         used_filters,
         filters,
         group_id,
         action,
-        positon,
+        position,
         targeted_player,
         target_position,
         formation,
@@ -1269,256 +1262,53 @@ def generate_DUC_target():
         timer_time,
         goal,
         use_goal,
-    ]
+    )
 
 
-def mutate_DUC_target(target, mutation_chance):
-    selected = target[0]
-    selected_max = target[1]
-    used_filters = target[2]
-    filters = target[3].copy()
-    group_id = target[4]
-    action = target[5]
-    positon = target[6]
-    targeted_player = target[7]
-    target_position = target[8]
-    formation = target[9]
-    stance = target[10]
-    timer_id = target[11]
-    timer_time = target[12]
-    if len(target) > 13:
-        goal = target[13]
-        use_goal = target[14]
-    else:
-        goal = 1
-        use_goal = False
-
+def mutate_duc_target(target: DUCTarget, mutation_chance: float) -> DUCTarget:
     if random.random() < mutation_chance:
-        selected = random.choice(PLAYER_LIST)
-
+        target.selected = random.choice(PLAYER_LIST)
     if random.random() < mutation_chance:
         if random.random() < 0.25:
-            selected_max = random.randint(0, 40)
+            target.selected_max = random.randint(0, 40)
         else:
-            selected_max += random.randint(-5, 5)
-
+            target.selected_max += random.randint(-5, 5)
     if random.random() < mutation_chance:
-        used_filters = random.randint(0, 5)
-
-    for i in range(len(filters)):
+        target.used_filters = random.randint(0, 5)
+    for target_filter in target.filters:
         if random.random() < mutation_chance:
-            filters[i][0] = random.randint(-1, 84)
-
+            target_filter.object = random.randint(-1, 84)
         if random.random() < mutation_chance:
-            filters[i][1] = random.choice(SIMPLE_COMPARE)
-
+            target_filter.compare = random.choice(SIMPLE_COMPARE)
         if random.random() < mutation_chance:
             if random.random() < 0.25:
-                filters[i][2] = random.randint(-5, 100)
+                target_filter.value = random.randint(-5, 100)
             else:
-                filters[i][2] += random.randint(-5, 5)
-
+                target_filter.value += random.randint(-5, 5)
     if random.random() < mutation_chance:
-        group_id = random.randint(0, 9)
-
+        target.group_id = random.randint(0, 9)
     if random.random() < mutation_chance:
-        action = random.randint(0, 20)
-
+        target.action = random.randint(0, 20)
     if random.random() < mutation_chance:
-        positon = random.randint(0, 13)
-
+        target.position = random.randint(0, 13)
     if random.random() < mutation_chance:
-        targeted_player = random.randint(1, 2)
-
+        target.targeted_player = random.randint(1, 2)
     if random.random() < mutation_chance:
-        target_position = random.choice([True, False])
-
+        target.target_position = random.choice([True, False])
     if random.random() < mutation_chance:
-        formation = random.choice(FORMATIONS)
-
+        target.formation = random.choice(FORMATIONS)
     if random.random() < mutation_chance:
-        stance = random.randint(-1, 3)
-
+        target.stance = random.randint(-1, 3)
     if random.random() < mutation_chance:
-        timer_id = random.randint(1, 50)
-
+        target.timer_id = random.randint(1, 50)
     if random.random() < mutation_chance:
         if random.random() < 0.25:
-            timer_time = random.randint(0, 2000)
+            target.timer_time = random.randint(0, 2000)
         else:
-            timer_time += random.randint(-100, 100)
-
+            target.timer_time += random.randint(-100, 100)
     if random.random() < mutation_chance:
-        goal = random.randint(1, 40)
-
+        target.goal = random.randint(1, 40)
     if random.random() < mutation_chance:
-        use_goal = random.choice([True, False])
+        target.use_goal = random.choice([True, False])
 
-    return [
-        selected,
-        selected_max,
-        used_filters,
-        filters,
-        group_id,
-        action,
-        positon,
-        targeted_player,
-        target_position,
-        formation,
-        stance,
-        timer_id,
-        timer_time,
-        goal,
-        use_goal,
-    ]
-
-
-def write_DUC_target(target):
-    selected = target[0]
-    selected_max = target[1]
-    used_filters = target[2]
-    filters = target[3]
-    group_id = target[4]
-    action = target[5]
-    position = target[6]
-    targeted_player = target[7]
-    target_position = target[8]
-    formation = target[9]
-    stance = target[10]
-    timer_id = target[11]
-    if timer_id == 0:
-        timer_id == 1
-    timer_time = target[12]
-    if len(target) > 13:
-        goal = target[13]
-        use_goal = target[14]
-    else:
-        goal = 1
-        use_goal = False
-
-    used_const = "selfPlayerID"
-    if targeted_player == 2:
-        used_const = "enemyPlayerID"
-
-    string = (
-        "\n(defrule\n\t(true)\n=>\n\t(enable-timer "
-        + str(timer_id)
-        + " "
-        + str(timer_time)
-        + " )\n\t(disable-self))\n"
-    )
-
-    string += (
-        "\n(defrule\n\t(true)\n=>\n\t(up-full-reset-search)\n\t(up-reset-filters)\n\t(set-strategic-number 251 "
-        + used_const
-        + ")\n\t(set-strategic-number 249 "
-        + used_const
-        + "))\n"
-    )
-    string += (
-        "\n(defrule\n\t(true)\n=>\n\t(up-get-group-size c: "
-        + str(group_id)
-        + " 51)\n\t(up-set-group 1 c: "
-        + str(group_id)
-        + ")\n"
-    )
-
-    if not target_position:
-        string += (
-            "\t(up-find-remote c: "
-            + str(selected)
-            + " c: "
-            + str(selected_max)
-            + "))\n\n"
-        )
-
-        if used_filters > 0:
-            string += "\n(defrule\n\t(true)\n=>\n"
-
-            for i in range(used_filters):
-                filter_object = filters[i][0]
-                filter_compare = filters[i][1]
-                filter_value = filters[i][2]
-
-                string += (
-                    "\t(up-remove-objects 2 "
-                    + str(filter_object)
-                    + " "
-                    + str(filter_compare)
-                    + " "
-                    + str(filter_value)
-                    + ")\n"
-                )
-
-            string += ")"
-    else:
-        string += ")"
-
-    if use_goal and not target_position:
-        string += (
-            "\n(defrule\n\t(timer-triggered "
-            + str(timer_id)
-            + ")"
-            + "\n\t(goal "
-            + str(goal)
-            + " 1)"
-            + "\n\t(up-compare-goal 51 > 0)\n=>\n\t(up-target-objects 0 "
-            + str(action)
-            + " "
-            + str(formation)
-            + " "
-            + str(stance)
-            + ")"
-        )
-    elif use_goal and target_position:
-        string += (
-            "\n\n(defrule\n\t(timer-triggered "
-            + str(timer_id)
-            + ")"
-            + "\n\t(goal "
-            + str(goal)
-            + " 1)"
-            + "\n\t(up-compare-goal 51 > 0)\n=>\n\t(up-get-point "
-            + str(position)
-            + " 52)\n\t(up-target-point 52 "
-            + str(action)
-            + " "
-            + str(formation)
-            + " "
-            + str(stance)
-            + ")"
-        )
-    elif not use_goal and not target_position:
-        string += (
-            "\n(defrule\n\t(timer-triggered "
-            + str(timer_id)
-            + ")"
-            + "\n\t(up-compare-goal 51 > 0)\n=>\n\t(up-target-objects 0 "
-            + str(action)
-            + " "
-            + str(formation)
-            + " "
-            + str(stance)
-            + ")"
-        )
-    else:
-        string += (
-            "\n\n(defrule\n\t(timer-triggered "
-            + str(timer_id)
-            + ")"
-            + "\n\t(up-compare-goal 51 > 0)\n=>\n\t(up-get-point "
-            + str(position)
-            + " 52)\n\t(up-target-point 52 "
-            + str(action)
-            + " "
-            + str(formation)
-            + " "
-            + str(stance)
-            + ")"
-        )
-
-    string += "\n\t(enable-timer " + str(timer_id) + " " + str(timer_time) + "))\n\n"
-
-    string += "(defrule\n\t(true)\n\t=>\n\t(up-full-reset-search)\n\t(up-reset-filters)\n\t(set-strategic-number 251 enemyPlayerID)\n\t(set-strategic-number 249 enemyPlayerID))"
-
-    return string
+    return target
