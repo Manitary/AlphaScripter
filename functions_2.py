@@ -879,6 +879,15 @@ class Action:
     strategic_numbers: dict[str, str | int]
 
 
+@dataclass
+class Rule:
+    fact_length: int
+    action_length: int
+    age_required: list[str]
+    local_facts: list[Fact]
+    local_actions: list[Action]
+
+
 def generate_goal() -> Goal:
     goal_id = random.randint(1, 40)
     value = random.randint(0, 1)
@@ -1017,22 +1026,20 @@ def mutate_action(action: Action, mutation_chance: float) -> Action:
     return action
 
 
-def generate_rule():
+def generate_rule() -> Rule:
     fact_length = random.randint(1, max_fact_length)
     action_length = random.randint(1, max_action_length)
     # age_required = random.choice([["","","#load-if-not-defined DARK-AGE-END","#end-if","#load-if-not-defined FEUDAL-AGE-END","#end-if","#load-if-not-defined CASTLE-AGE-END","#end-if","#load-if-not-defined IMPERIAL-AGE-START","#end-if"]])
     age_required = ["", ""]
 
-    local_facts = []
-    local_actions = []
+    local_facts: list[Fact] = []
+    local_actions: list[Action] = []
 
-    for i in range(max_fact_length):
+    for _ in range(max_fact_length):
         local_facts.append(generate_fact())
         local_actions.append(generate_action())
 
-    rule = [fact_length, action_length, age_required, local_facts, local_actions]
-
-    return rule
+    return Rule(fact_length, action_length, age_required, local_facts, local_actions)
 
 
 def mutate_rule(rule, mutation_chance):
