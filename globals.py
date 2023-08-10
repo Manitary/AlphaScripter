@@ -1,5 +1,5 @@
 OLD_PARAMETERS = {
-    # ! Duplicate keys: EventType, ActionId
+    # ! Duplicate keys: EventType
     "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;614;615;616;617;618;619;620;621;631",
     "Age": "0;1;2;3",
     "AllyPlayer": "1;2;3;4;5;6;7;8;my-player-number;target-player;focus-player;-101;-103;-108;-201",
@@ -19,7 +19,8 @@ OLD_PARAMETERS = {
     "EscrowState": "0|512",
     "ESPlayerStance": "0;1;3",
     "EventID": "0|255",
-    "EventType": "0",
+    # "EventType": "0",
+    "EventType": "0;0",
     "ExploredState": "0;15;128",
     "FactId": "0|54",
     "FindPlayerMethod": "0;1;2;3",
@@ -87,7 +88,6 @@ OLD_PARAMETERS = {
     "0|40": "0|40",
     "0|239": "0|239",
     "83;293": "83;293",
-    "EventType": "0;0",
     "-254|254": "-254|254",
     "-1|11": "-1|11",
     "0|100": "0|100",
@@ -110,7 +110,9 @@ OLD_PARAMETERS = {
 }
 
 PARAMETERS = {
-    "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;615;616;617;618;619;620;631",
+    # ! Duplicate key: ActionId
+    # "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;615;616;617;618;619;620;631",
+    "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;614;615;616;617;618;619;620;621;631",
     "Age": "0;1;2;3",
     "AllyPlayer": "1;2;my-player-number;target-player;focus-player;-101;-103;-108;-201",
     "AnyPlayer": "0;1;2;my-player-number;target-player;focus-player;-101;-102;-103;-104;-105;-106;-107;-108;-109;-110;-111;-201;-202;-203;-204;-205",
@@ -192,7 +194,6 @@ PARAMETERS = {
     "AttackStance": "0;1;2;3",
     "TargetAction": "0|18",
     "Formation": "-1;2;4;7;8",
-    "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;614;615;616;617;618;619;620;621;631",
     "SnValue": "-100|100",
     "2": "2;2",
     "0|240": "0|240",
