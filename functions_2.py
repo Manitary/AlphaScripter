@@ -14,7 +14,7 @@ from globals import (
     SN,
     TRAINABLE,
 )
-from models import Action, Fact, Goal, GoalFact, Rule, Simple
+from models import Action, AttackRule, Fact, Goal, GoalFact, Rule, Simple
 from settings import *
 import settings
 
@@ -613,7 +613,7 @@ def write_ai(ai, ai_name):
         f.write(str(ai[5][i]))
 
     for i in range(len(ai[0])):
-        c = str(ai[0][i]) # ai[0][i] is a Simple object
+        c = str(ai[0][i])  # ai[0][i] is a Simple object
         f.write(c)
 
     for i in range(len(ai[6])):
@@ -904,7 +904,8 @@ def mutate_simple(simple: Simple, mutation_chance: float) -> Simple:
 
     return simple
 
-def generate_attack_rule():
+
+def generate_attack_rule() -> AttackRule:
     type = random.choice(["Attack", "Retreat", "Retreat to"])
     retreat_unit = random.choice(TRAINABLE)
     retreat_to = random.choice(BUILDABLE)
@@ -973,35 +974,38 @@ def generate_attack_rule():
         ]
     )
 
-    population1 = ["", "", 0]
-    population1[0] = random.choice(
-        [
-            "population",
-            "civilian-population",
-            "military-population",
-            "defend-soldier-count",
-            "",
-        ]
+    population1 = (
+        random.choice(
+            [
+                "population",
+                "civilian-population",
+                "military-population",
+                "defend-soldier-count",
+                "",
+            ]
+        ),
+        random.choice(["<", ">", "==", "!=", "<=", ">="]),
+        random.randint(0, 200),
     )
-    population1[1] = random.choice(["<", ">", "==", "!=", "<=", ">="])
-    population1[2] = random.randint(0, 200)
 
-    population2 = ["", "", 0]
-    population2[0] = random.choice(
-        [
-            "population",
-            "civilian-population",
-            "military-population",
-            "defend-soldier-count",
-            "",
-        ]
+    population2 = (
+        random.choice(
+            [
+                "population",
+                "civilian-population",
+                "military-population",
+                "defend-soldier-count",
+                "",
+            ]
+        ),
+        random.choice(["<", ">", "==", "!=", "<=", ">="]),
+        random.randint(0, 200),
     )
-    population2[1] = random.choice(["<", ">", "==", "!=", "<=", ">="])
-    population2[2] = random.randint(0, 200)
 
-    gametime = ["", 0]
-    gametime[0] = random.choice(["<", ">", "==", "!=", "<=", ">=", ""])
-    gametime[1] = random.randint(0, 7200)
+    gametime = (
+        random.choice(["<", ">", "==", "!=", "<=", ">=", ""]),
+        random.randint(0, 7200),
+    )
 
     goal = random.randint(1, 40)
     use_goal = random.choice([True, False])
@@ -1009,21 +1013,19 @@ def generate_attack_rule():
     # set-strategic-number sn-percent-attack-soldiers
     attack_percent = random.randint(0, 100)
 
-    rule = [
+    return AttackRule(
         type,
         age_required,
         enemy_age_required,
         population1,
         population2,
         gametime,
-        attack_percent,
         retreat_unit,
+        attack_percent,
         retreat_to,
         goal,
         use_goal,
-    ]
-
-    return rule
+    )
 
 
 def mutate_attack_rule(rule, mutation_chance):

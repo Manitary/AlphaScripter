@@ -155,3 +155,17 @@ class Simple:
         ans += ")\n"
 
         return ans
+
+@dataclass
+class AttackRule:
+    type: str
+    age_required: str
+    enemy_age_required: str
+    population1: tuple[str, str, int]
+    population2: tuple[str, str, int]
+    game_time: tuple[str, int]
+    retreat_unit: str
+    attack_percent: int
+    retreat_to: str
+    goal: int
+    use_goal: bool
