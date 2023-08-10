@@ -2,6 +2,7 @@ import copy
 import json
 import random
 import re
+from typing import TypeVar
 
 from globals import (
     ACTIONS,
@@ -33,6 +34,8 @@ from models import (
 )
 from settings import *
 import settings
+
+T = TypeVar("T")
 
 if allow_towers:
     PARAMETERS["Buildable"] += ";watch-tower;guard-tower;keep"
@@ -464,89 +467,50 @@ def mutate_ai(ai: AI, mutation_chance: float) -> AI:
     return local
 
 
-def crossover(ai_one, ai_two, mutation_chance):
-    out1 = []
-    out2 = []
-    out3 = []
-    out4 = []
-    out5 = []
-    out6 = []
-    out7 = []
-
-    for i in range(len(ai_one[0])):
-        try:
-            if random.random() < mutation_chance / 5:
-                if random.random() < 0.5:
-                    out1.append(random.choice(ai_one[0]))
-
-                else:
-                    out1.append(random.choice(ai_two[0]))
-
+def _crossover_rule_1(
+    parent_1: list[T], parent_2: list[T], mutation_chance: float
+) -> list[T]:
+    child: list[T] = []
+    for i, _ in enumerate(parent_1):
+        if random.random() < mutation_chance / 5:
+            if random.random() < 0.5:
+                child.append(random.choice(parent_1))
             else:
-                out1.append(random.choice([ai_one[0][i], ai_two[0][i]]))
-
-        except IndexError:
-            out1.append(random.choice(ai_one[0]))
-
-    for i in range(len(ai_one[1])):
-        try:
-            if random.random() < mutation_chance / 5:
-                if random.random() < 0.5:
-                    out2.append(random.choice(ai_one[1]))
-
-                else:
-                    out2.append(random.choice(ai_two[1]))
-
+                child.append(random.choice(parent_2))
+        else:
+            if i >= len(parent_2):
+                child.append(random.choice(parent_1))
             else:
-                out2.append(random.choice([ai_one[1][i], ai_two[1][i]]))
+                child.append(random.choice((parent_1[i], parent_2[i])))
 
-        except IndexError:
-            out2.append(random.choice(ai_one[1]))
+    return child
 
-    for i in range(len(ai_one[2])):
-        try:
-            if random.random() < mutation_chance / 5:
-                if random.random() < 0.5:
-                    out3.append(random.choice(ai_one[2]))
 
-                else:
-                    out3.append(random.choice(ai_two[2]))
+def _crossover_rule_2(parent_1: list[T], parent_2: list[T]) -> list[T]:
+    child: list[T] = []
+    for i, _ in enumerate(parent_1):
+        if i < len(parent_2):
+            child.append(random.choice((parent_1[i], parent_2[i])))
+        else:
+            child.append(random.choice(parent_1))
 
-            else:
-                out3.append(random.choice([ai_one[2][i], ai_two[2][i]]))
+    return child
 
-        except IndexError:
-            out3.append(random.choice(ai_one[2]))
 
-    for i in range(len(ai_one[3])):
-        try:
-            out4.append(random.choice([ai_one[3][i], ai_two[3][i]]))
+def crossover(ai_1: AI, ai_2: AI, mutation_chance: float) -> AI:
+    simples = _crossover_rule_1(ai_1.simples, ai_2.simples, mutation_chance)
+    rules = _crossover_rule_1(ai_1.rules, ai_2.rules, mutation_chance)
+    attack_rules = _crossover_rule_1(
+        ai_1.attack_rules, ai_2.attack_rules, mutation_chance
+    )
+    duc_search = _crossover_rule_2(ai_1.duc_search, ai_2.duc_search)
+    duc_target = _crossover_rule_2(ai_1.duc_target, ai_2.duc_target)
+    goal_rules = _crossover_rule_2(ai_1.goal_rules, ai_2.goal_rules)
+    goal_actions = _crossover_rule_2(ai_1.goal_actions, ai_2.goal_actions)
 
-        except IndexError:
-            out4.append(random.choice(ai_one[3]))
-
-    for i in range(len(ai_one[4])):
-        try:
-            out5.append(random.choice([ai_one[4][i], ai_two[4][i]]))
-
-        except IndexError:
-            out5.append(random.choice(ai_one[4]))
-
-    for i in range(len(ai_one[5])):
-        try:
-            out6.append(random.choice([ai_one[5][i], ai_two[5][i]]))
-
-        except IndexError:
-            out6.append(random.choice(ai_one[5]))
-
-    for i in range(len(ai_one[6])):
-        try:
-            out7.append(random.choice([ai_one[6][i], ai_two[6][i]]))
-
-        except IndexError:
-            out7.append(random.choice(ai_one[6]))
-
-    return [out1, out2, out3, out4, out5, out6, out7]
+    return AI(
+        simples, rules, attack_rules, duc_search, duc_target, goal_rules, goal_actions
+    )
 
 
 def export_ai(ai: AI, ai_name: str) -> None:
