@@ -97,7 +97,7 @@ def mutate_parameters(
         mutation_rules = PARAMETERS[key]
         if "|" in mutation_rules:
             if random.random() < mutation_chance:
-                out[key] = random.randint(*tuple(map(int, mutation_rules)))
+                out[key] = random.randint(*tuple(map(int, mutation_rules.split("|"))))
         elif ";" in mutation_rules:
             if random.random() < mutation_chance:
                 out[key] = random.choice(mutation_rules.split(";"))
@@ -124,7 +124,7 @@ def generate_sn_values() -> dict[str, str | int]:
     out: dict[str, str | int] = {}
     for key, mutation_rules in SN.items():
         if "|" in mutation_rules:
-            out[key] = random.randint(*tuple(map(int, mutation_rules)))
+            out[key] = random.randint(*tuple(map(int, mutation_rules.split("|"))))
         elif ";" in mutation_rules:
             out[key] = random.choice(mutation_rules.split(";"))
         else:
@@ -140,7 +140,7 @@ def mutate_sn_values(
     for key, mutation_rules in SN.items():
         if "|" in mutation_rules:
             if random.random() < mutation_chance:
-                out[key] = random.randint(*tuple(map(int, mutation_rules)))
+                out[key] = random.randint(*tuple(map(int, mutation_rules.split("|"))))
         elif ";" in mutation_rules:
             if random.random() < mutation_chance:
                 out[key] = random.choice(mutation_rules.split(";"))
