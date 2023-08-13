@@ -1,10 +1,11 @@
 import copy
+import itertools
 import json
 import random
 import re
 from abc import ABC, abstractmethod
 from collections import UserDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self
 
 import settings
@@ -74,6 +75,12 @@ class GoalFact:
             f"{' '.join(tuple(str(self.parameters[x]) for x in FACTS[self.fact_name]))}"
         )
 
+    def export(self) -> str:
+        return (
+            f"{self.fact_name},"
+            f"{';'.join(str(self.parameters[x]) for x in FACTS[self.fact_name])}"
+        )
+
 
 @dataclass
 class Goal(Mutable):
@@ -135,6 +142,12 @@ class Goal(Mutable):
             )
 
         return goal
+
+    def export(self) -> str:
+        return (
+            f"{self.goal_id},{self.value},{self.disable},{self.goal_num},{self.fact_count},"
+            f"{','.join(fact.export() for fact in self.used_facts)}"
+        )
 
 
 @dataclass
@@ -231,6 +244,14 @@ class Action(Mutable):
         action.strategic_numbers = action.strategic_numbers.mutate(mutation_chance)
 
         return action
+
+    def export(self) -> str:
+        ans = (
+            f"{self.action_name},"
+            f"{';'.join(str(self.parameters[x]) for x in ACTIONS[self.action_name])}"
+        )
+
+        return ans
 
 
 def _write_actions(actions: list[Action]) -> str:
@@ -649,6 +670,9 @@ class PopulationCondition:
             random.randint(0, 200),
         )
 
+    def export(self) -> str:
+        return f"{self.type},{self.comparison},{self.amount}"
+
 
 @dataclass
 class GameTimeCondition:
@@ -669,6 +693,9 @@ class GameTimeCondition:
             random.choice(["<", ">", "==", "!=", "<=", ">=", ""]),
             random.randint(0, 7200),
         )
+
+    def export(self) -> str:
+        return f"{self.comparison},{self.amount}"
 
 
 @dataclass
@@ -850,6 +877,15 @@ class AttackRule(Mutable):
 
         return rule
 
+    def export(self) -> str:
+        ans = (
+            f"{self.type},{self.age_required},{self.enemy_age_required},"
+            f"{self.population1.export()},{self.population2.export()},{self.game_time.export()},"
+            f"{self.retreat_unit},{self.attack_percent},{self.retreat_to},{self.goal},{self.use_goal}"
+        )
+
+        return ans
+
 
 @dataclass
 class Filter:
@@ -867,6 +903,9 @@ class Filter:
             random.choice(SIMPLE_COMPARE),
             random.randint(-5, 100),
         )
+
+    def export(self) -> str:
+        return f"{self.object};{self.compare};{self.value}"
 
 
 @dataclass
@@ -970,6 +1009,13 @@ class DUCSearch(Mutable):
             search.group_id = random.randint(0, 9)
 
         return search
+
+    def export(self) -> str:
+        return (
+            f"{self.self_selected},{self.self_selected_max},{self.used_filters},"
+            f"{self.group_id},{self.selected},{self.selected_max},{self.distance_check},"
+            f"{','.join(filter.export() for filter in self.filters)}"
+        )
 
 
 @dataclass
@@ -1118,6 +1164,15 @@ class DUCTarget(Mutable):
 
         return target
 
+    def export(self) -> str:
+        return (
+            f"{self.selected},{self.selected_max},{self.group_id},{self.used_filters},"
+            f"{','.join(filter.export() for filter in self.filters)},"
+            f"{self.action},{self.position},{self.targeted_player},{self.target_position},"
+            f"{self.formation},{self.stance},{self.timer_id},{self.timer_time}"
+            f"{self.goal},{self.use_goal}"
+        )
+
 
 @dataclass
 class GoalAction(Mutable):
@@ -1178,16 +1233,24 @@ class GoalAction(Mutable):
 
         return goal_action
 
+    def export(self) -> str:
+        ans = (
+            f"{self.used_goals},{self.used_actions}"
+            f"{','.join(map(str, itertools.chain.from_iterable(zip(self.goals, self.values))))},"
+            f"{','.join(action.export() for action in self.actions)},"
+        )
+        return ans
+
 
 @dataclass
 class AI(Mutable):
-    simples: list[Simple]
-    rules: list[Rule]
-    attack_rules: list[AttackRule]
-    duc_search: list[DUCSearch]
-    duc_target: list[DUCTarget]
-    goal_rules: list[Goal]
-    goal_actions: list[GoalAction]
+    simples: list[Simple] = field(default_factory=list)
+    rules: list[Rule] = field(default_factory=list)
+    attack_rules: list[AttackRule] = field(default_factory=list)
+    duc_search: list[DUCSearch] = field(default_factory=list)
+    duc_target: list[DUCTarget] = field(default_factory=list)
+    goal_rules: list[Goal] = field(default_factory=list)
+    goal_actions: list[GoalAction] = field(default_factory=list)
 
     @classmethod
     def generate(cls) -> Self:
