@@ -1,6 +1,6 @@
 # from Functions import *
 # from main import *
-from functions_2 import generate_ai, mutate_ai, crossover, save_ai, export_ai
+from functions import generate_ai, mutate_ai, crossover, save_ai, export_ai
 
 # get_single_ai_data(['huns']*2,'best',list(eloDict.keys()),eloDict,3)
 
