@@ -1,16 +1,17 @@
 import copy
-from itertools import zip_longest
 import itertools
 import random
 import time
+from itertools import zip_longest
 from typing import Sequence
 
 from elosports.elo import Elo
 
 import settings
-from game_launcher_2 import Game, GameSettings, GameStatus, Launcher
-from models import AI
-from functions import crossover
+
+from .functions import crossover
+from .game_launcher import Game, GameSettings, GameStatus, Launcher
+from .models import AI
 
 AI_NAMES = ["parent", "b", "c", "d", "e", "f", "g", "h"]
 
@@ -1208,16 +1209,16 @@ def speed_train(trainer: str, default_mutation_chance: float = 0.01):
             generation = 0
 
 
-def run_elo_once(ai: str, elo_dict, group_list: list[str]):
+def run_elo_once(ai: str, elo_dict: dict[str, float], group_list: list[str]) -> float:
     elo_league = Elo(k=20, g=1)
 
     game_time = 7200
     games_run: list[list[list[str] | str]] = []
 
     for name in group_list:
-        elo_league.addPlayer(name, rating=elo_dict[name])
+        elo_league.add_player(name, rating=elo_dict[name])
 
-    elo_league.addPlayer(ai, rating=1600)
+    elo_league.add_player(ai, rating=1600)
 
     for x, name in enumerate(group_list):
         if (
@@ -1256,19 +1257,19 @@ def run_elo_once(ai: str, elo_dict, group_list: list[str]):
                 times.append(game.stats.elapsed_game_time)
                 if game.stats.winner == 1:
                     wins += 1
-                    elo_league.gameOver(
-                        winner=ai, loser=group_list[x], winnerHome=False
+                    elo_league.game_over(
+                        winner=ai, loser=group_list[x], winner_home=False
                     )
                 elif game.stats.winner == 2:
-                    elo_league.gameOver(
-                        winner=group_list[x], loser=ai, winnerHome=False
+                    elo_league.game_over(
+                        winner=group_list[x], loser=ai, winner_home=False
                     )
 
             if x == 0 and wins == 0:
                 # print("failed")
                 return 0
 
-    return elo_league.ratingDict[ai]
+    return elo_league.rating[ai]
 
 
 def elo_train(default_mutation_chance: float = settings.default_mutation_chance):
@@ -1331,7 +1332,7 @@ def get_ai_data(group_list: list[str]) -> None:
     games_run: list[list[str]] = []
 
     for name in group_list:
-        elo_league.addPlayer(name, rating=1600)
+        elo_league.add_player(name, rating=1600)
         stats_dict[name] = [[], [], [], []]
 
     for name_1, name_2 in itertools.combinations(group_list, 2):
@@ -1386,10 +1387,10 @@ def get_ai_data(group_list: list[str]) -> None:
                     stats_dict[name_2][1].append(game.stats.elapsed_game_time)
                     stats_dict[name_2][2].append(game.stats.scores)
                     stats_dict[name_2][3].append(name_1)
-                    elo_league.gameOver(
+                    elo_league.game_over(
                         winner=name_1,
                         loser=name_2,
-                        winnerHome=False,
+                        winner_home=False,
                     )
 
                 elif game.stats.winner == 2:
@@ -1401,10 +1402,10 @@ def get_ai_data(group_list: list[str]) -> None:
                     stats_dict[name_2][1].append(game.stats.elapsed_game_time)
                     stats_dict[name_2][2].append(game.stats.scores)
                     stats_dict[name_2][3].append(name_1)
-                    elo_league.gameOver(
+                    elo_league.game_over(
                         winner=name_2,
                         loser=name_1,
-                        winnerHome=False,
+                        winner_home=False,
                     )
 
             else:
@@ -1417,13 +1418,13 @@ def get_ai_data(group_list: list[str]) -> None:
                 stats_dict[name_2][2].append(game.stats.scores)
                 stats_dict[name_2][3].append(name_1)
 
-    print(elo_league.ratingDict)
+    print(elo_league.rating)
     print(stats_dict)
     with open("data.csv", "w+", encoding="utf-8") as f:
         f.write("AI,elo,result,game time,score,opponent\n")
         for k, v in stats_dict.items():
             for a, b, c, d in zip(v[0], v[1], v[2], v[3]):
-                f.write(f"{k},{elo_league.ratingDict[k]},{a},{b},{c},{d}\n")
+                f.write(f"{k},{elo_league.rating[k]},{a},{b},{c},{d}\n")
 
 
 def get_single_ai_data(
@@ -1438,9 +1439,9 @@ def get_single_ai_data(
     game_time = 7200
 
     for name in group_list:
-        elo_league.addPlayer(name, rating=dictionary[name])
+        elo_league.add_player(name, rating=dictionary[name])
 
-    elo_league.addPlayer(ai, rating=1600)
+    elo_league.add_player(ai, rating=1600)
 
     stats_dict[ai] = [[], [], [], []]
 
@@ -1489,7 +1490,7 @@ def get_single_ai_data(
                         stats_dict[ai][2].append(game.stats.scores[0])
                         stats_dict[ai][3].append(name)
 
-                        elo_league.gameOver(winner=ai, loser=name, winnerHome=False)
+                        elo_league.game_over(winner=ai, loser=name, winner_home=False)
 
                     elif game.stats.winner == 2:
                         stats_dict[ai][0].append("loss")
@@ -1497,15 +1498,15 @@ def get_single_ai_data(
                         stats_dict[ai][2].append(game.stats.scores[0])
                         stats_dict[ai][3].append(name)
 
-                        elo_league.gameOver(winner=name, loser=ai, winnerHome=False)
+                        elo_league.game_over(winner=name, loser=ai, winner_home=False)
 
-    print(elo_league.ratingDict)
+    print(elo_league.rating)
     print(stats_dict)
     with open("data.csv", "w+", encoding="utf-8") as f:
         f.write("AI,elo,result,game time,score,opponent\n")
         for k, v in stats_dict.items():
             for a, b, c, d in zip(v[0], v[1], v[2], v[3]):
-                f.write(f"{k},{elo_league.ratingDict[k]},{a},{b},{c},{d}\n")
+                f.write(f"{k},{elo_league.rating[k]},{a},{b},{c},{d}\n")
 
 
 def benchmarker_slow(ai1: str, ai2: str, civs: list[str]) -> int:
