@@ -143,7 +143,7 @@ class Goal(Mutable):
 
         return goal
 
-    def export(self) -> str:
+    def to_csv(self) -> str:
         return (
             f"{self.goal_id},{self.value},{self.disable},{self.goal_num},{self.fact_count},"
             f"{','.join(fact.export() for fact in self.used_facts)}"
@@ -354,6 +354,15 @@ class ComplexRule(Mutable):
         return rule
 
 
+TYPE_PARAM = {
+    "research": "TechId",
+    "build": "Buildable",
+    "build-forward": "Buildable",
+    "train": "Trainable",
+    "strategic_number": "SnId",
+}
+
+
 @dataclass
 class SimpleRule(Mutable):
     type: str
@@ -410,6 +419,18 @@ class SimpleRule(Mutable):
             )
         ans += ")\n"
 
+        return ans
+
+    def to_csv(self) -> str:
+        ans = f"{self.parameters[TYPE_PARAM[self.type]]},{self.age_required[0]},"
+        if self.type in {"build", "build-forward", "train"}:
+            ans += f"{self.threshold},"
+        elif self.type in {"strategic_number"}:
+            ans += f"{self.strategic_numbers[str(self.parameters['SnId'])]},"
+        ans += (
+            f"{self.requirement},{self.requirement_count},{self.game_time},"
+            f"{self.use_goal},{self.goal}"
+        )
         return ans
 
     @classmethod
@@ -889,7 +910,7 @@ class AttackRule(Mutable):
 
         return rule
 
-    def export(self) -> str:
+    def to_csv(self) -> str:
         return (
             f"{self.type},{self.age_required},{self.enemy_age_required},"
             f"{self.population1.export()},{self.population2.export()},{self.game_time.export()},"
@@ -1519,3 +1540,99 @@ class AI(Mutable):
         with open("AI/" + file_name + ".txt", encoding="utf-8") as json_file:
             data = json.load(json_file)
         return AI(**json.loads(data["lazy"]))
+
+    def to_csv(self) -> str:
+        ans = ""
+        ans += (
+            "|Research\n"
+            "TechID,age required,required,requirement count,"
+            "gametime,goal_checked,goal_id,order\n"
+        )
+        ans += ",\n".join(
+            (
+                f"{simple.to_csv()},{i},\n"
+                for i, simple in enumerate(self.simples)
+                if simple.type == "research"
+            )
+        )
+        ans += ",\n"
+        ans += (
+            "\n|Building\n"
+            "BuildingID,age required,max count,required,requirement count,"
+            "gametime,goal_checked,goal_id,order\n"
+        )
+        ans += ",\n".join(
+            (
+                f"{simple.to_csv()},{i},\n"
+                for i, simple in enumerate(self.simples)
+                if simple.type == "build"
+            )
+        )
+        ans += ",\n"
+        ans += (
+            "\n|Build forward\n"
+            "BuildingID,age required,max count,required,requirement count,"
+            "gametime,goal_checked,goal_id,order\n"
+        )
+        ans += ",\n".join(
+            (
+                f"{simple.to_csv()},{i},\n"
+                for i, simple in enumerate(self.simples)
+                if simple.type == "build-forward"
+            )
+        )
+        ans += ",\n"
+        ans += (
+            "\n|Unit\n"
+            "UnitID,age required,max count,required,requirement count,"
+            "gametime,goal_checked,goal_id,order\n"
+        )
+        ans += ",\n".join(
+            (
+                f"{simple.to_csv()},{i},\n"
+                for i, simple in enumerate(self.simples)
+                if simple.type == "train"
+            )
+        )
+        ans += (
+            "\n|Strategic Number\n"
+            "SnID,age required,value,required,requirement count,"
+            "gametime,goal_checked,goal_id,order\n"
+        )
+        ans += "".join(
+            (
+                f"{simple.to_csv()},{i},\n"
+                for i, simple in enumerate(self.simples)
+                if simple.type == "strategic_number"
+            )
+        )
+        ans += (
+            "\n|Attack Rules\n"
+            "Type,Age required,Enemy Age Required,"
+            "population1 type,population1 inq,population1 value,"
+            "population2 type,population2 inq,population2 value,"
+            "gametime inq,gametime value,attack %,retreat units,retreat location,"
+            "goal_id,goal_checked\n"
+        )
+        ans += "\n".join(attack_rule.to_csv() for attack_rule in self.attack_rules)
+        ans += "\n"
+        ans += (
+            "\n|Goals\n"
+            "Goal ID,value,disable after use,checked goal,checked goal value,number of facts used,"
+            "fact1,params1,fact2,params2,fact3,params3,fact4,params4\n"
+        )
+        ans += ",\n".join(goal.to_csv() for goal in self.goal_rules)
+        ans += "\n"
+        ans += "\n|DUC\n"
+        ans += "lol I will add a descriptor later leave this line\n" # TODO
+        for search, target in zip(self.duc_search, self.duc_target):
+            ans += f"{search.export()},{target.export()}\n"
+        ans += (
+            "\n|Goal actions\n"
+            "goal_count,action_count,goal1,goal_value1,goal2,goal_value2,goal3,goal_value3,"
+            "action1,action1_parameters,action2,action2_parameters,action3,action3_parameters\n"
+        )
+        ans += "\n".join(goal_action.export() for goal_action in self.goal_actions)
+        ans += "\n"
+
+        return ans
