@@ -1,7 +1,7 @@
 import random
 from typing import TypeVar
 
-from models import AI
+from src.models import AI
 
 T = TypeVar("T")
 

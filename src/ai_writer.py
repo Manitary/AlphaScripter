@@ -2,9 +2,9 @@ import tkinter as tk
 from io import TextIOWrapper
 from typing import Any
 
-from globals import ACTIONS, FACTS
 from main import backup
-from models import (
+from src.globals import ACTIONS, FACTS
+from src.models import (
     AI,
     AttackRule,
     DUCSearch,

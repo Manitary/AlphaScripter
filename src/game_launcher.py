@@ -706,6 +706,8 @@ class Launcher:
     async def update_games(self):
         tasks: list[asyncio.Task[None]] = []
         for game in self.running_games:
-            task = asyncio.create_task(coro=game.update(), name=f"UpdateGame-{game.name}")
+            task = asyncio.create_task(
+                coro=game.update(), name=f"UpdateGame-{game.name}"
+            )
             tasks.append(task)
         await asyncio.gather(*tasks)

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Self
 
 import settings
-from globals import (
+from src.globals import (
     ACTIONS,
     BUILDABLE,
     FACTS,

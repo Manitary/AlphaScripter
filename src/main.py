@@ -9,9 +9,9 @@ from elosports.elo import Elo
 
 import settings
 
-from .functions import crossover
-from .game_launcher import Game, GameSettings, GameStatus, Launcher
-from .models import AI
+from src.functions import crossover
+from src.game_launcher import Game, GameSettings, GameStatus, Launcher
+from src.models import AI
 
 AI_NAMES = ["parent", "b", "c", "d", "e", "f", "g", "h"]
 
