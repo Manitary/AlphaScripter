@@ -149,6 +149,26 @@ class Goal(Mutable):
             f"{','.join(fact.export() for fact in self.used_facts)}"
         )
 
+    @classmethod
+    def from_csv(cls, csv: list[str]) -> Self:
+        goal = Goal.generate()
+        goal.goal_id = int(csv[0])
+        goal.value = int(csv[1])
+        goal.disable = csv[2] == "TRUE"
+        goal.goal_num = int(csv[3])
+        goal.use_goal = csv[4] == "TRUE"
+        goal.fact_count = int(csv[5])
+
+        for x, fact in enumerate(goal.used_facts):
+            fact.fact_name = csv[6 + x * 2]
+            local_params = csv[7 + x * 2].split(";")
+            if fact.fact_name in {"TRUE", "FALSE"}:
+                fact.fact_name = fact.fact_name.lower()
+            for y, param in enumerate(local_params):
+                fact.parameters[FACTS[fact.fact_name][y + 1]] = param
+
+        return goal
+
 
 @dataclass
 class Fact(Mutable):
@@ -432,6 +452,43 @@ class SimpleRule(Mutable):
             f"{self.use_goal},{self.goal}"
         )
         return ans
+
+    @classmethod
+    def from_csv(cls, simple_type: str, csv: list[str]) -> Self:
+        if simple_type not in (TYPE_PARAM):
+            raise ValueError(f"Invalid simple rule type: {simple_type}")
+        if simple_type == "research":
+            return SimpleRule._from_csv_research(csv)
+        return SimpleRule._from_csv_other(simple_type, csv)
+
+    @classmethod
+    def _from_csv_research(cls, csv: list[str]) -> Self:
+        simple = SimpleRule.generate()
+        simple.type = "research"
+        simple.parameters["TechId"] = csv[0]
+        simple.age_required = [csv[1]]
+        simple.requirement = csv[2]
+        simple.requirement_count = int(csv[3])
+        simple.game_time = int(csv[4])
+        simple.goal = int(csv[6])
+        simple.use_goal = csv[5].upper() == "TRUE"
+        return simple
+
+    @classmethod
+    def _from_csv_other(cls, simple_type: str, csv: list[str]) -> Self:
+        simple = SimpleRule.generate()
+        simple.type = simple_type
+        simple.parameters[TYPE_PARAM[simple_type]] = csv[0]
+        if simple_type == "strategic_number":
+            simple.strategic_numbers[csv[0]] = csv[2]
+        simple.threshold = int(csv[2])
+        simple.age_required = [csv[1]]
+        simple.requirement = csv[3]
+        simple.requirement_count = int(csv[4])
+        simple.game_time = int(csv[5])
+        simple.goal = int(csv[7])
+        simple.use_goal = csv[6].upper() == "TRUE"
+        return simple
 
     @classmethod
     def generate(cls) -> Self:
@@ -918,6 +975,26 @@ class AttackRule(Mutable):
             f"{self.goal},{self.use_goal}"
         )
 
+    @classmethod
+    def from_csv(cls, csv: list[str]) -> Self:
+        return AttackRule(
+            type=csv[0],
+            age_required=csv[1],
+            enemy_age_required=csv[2],
+            population1=PopulationCondition(
+                type=csv[3], comparison=csv[4], amount=int(csv[5])
+            ),
+            population2=PopulationCondition(
+                type=csv[6], comparison=csv[7], amount=int(csv[8])
+            ),
+            game_time=GameTimeCondition(csv[9], int(csv[10])),
+            retreat_unit=csv[11],
+            attack_percent=int(csv[12]),
+            retreat_to=csv[13],
+            goal=int(csv[15]),
+            use_goal=csv[14].upper() == "TRUE",
+        )
+
 
 @dataclass
 class Filter:
@@ -1048,6 +1125,25 @@ class DUCSearch(Mutable):
             f"{self.group_id},{self.selected},{self.selected_max},{self.distance_check},"
             f"{','.join(filter.export() for filter in self.filters)}"
         )
+
+    @classmethod
+    def from_csv(cls, csv: list[str]) -> Self:
+        search = DUCSearch(
+            self_selected=csv[0],
+            self_selected_max=int(csv[1]),
+            used_filters=int(csv[2]),
+            filters=[],
+            group_id=int(csv[3]),
+            selected=csv[4],
+            selected_max=int(csv[5]),
+            distance_check=csv[6] == "TRUE",
+        )
+        for x in range(7):  # ! Dependent on the number of default filters
+            local = csv[7 + x].split(";")
+            search.filters[x] = Filter(
+                object=int(local[0]), compare=local[1], value=int(local[2])
+            )
+        return search
 
 
 @dataclass
@@ -1205,6 +1301,33 @@ class DUCTarget(Mutable):
             f"{self.goal},{self.use_goal}"
         )
 
+    @classmethod
+    def from_csv(cls, csv: list[str]) -> Self:
+        target = DUCTarget(
+            selected=csv[0],
+            selected_max=int(csv[1]),
+            used_filters=int(csv[3]),
+            filters=[],
+            group_id=int(csv[2]),
+            action=int(csv[11]),
+            position=int(csv[12]),
+            targeted_player=int(csv[13]),
+            target_position=csv[14] == "TRUE",
+            formation=csv[15],  # ? originally, int(), but formations are strings?
+            stance=int(csv[16]),
+            timer_id=int(csv[17]),
+            timer_time=int(csv[18]),
+            goal=int(csv[19]),
+            use_goal=csv[20] == "TRUE",
+        )
+        for x in range(7):  # ! Dependent on the number of default filters
+            local = csv[4 + x].split(";")
+            target.filters[x] = Filter(
+                object=int(local[0]), compare=local[1], value=int(local[2])
+            )
+
+        return target
+
 
 @dataclass
 class GoalAction(Mutable):
@@ -1272,6 +1395,22 @@ class GoalAction(Mutable):
             f"{','.join(action.export() for action in self.actions)},"
         )
         return ans
+
+    @classmethod
+    def from_csv(cls, line: list[str]) -> Self:
+        goal_action = GoalAction.generate()
+        goal_action.used_goals = int(line[0])
+        goal_action.used_actions = int(line[1])
+        goal_action.goals = [int(line[2 + 2 * x]) for x in range(3)]
+        goal_action.values = [int(line[3 + 2 * x]) for x in range(3)]
+        for x, action in enumerate(goal_action.actions):
+            action_name = line[8 + 2 * x]
+            local_params = line[9 + 2 * x].split(";")
+            for y, param in enumerate(local_params):
+                action.action_name = action_name
+                action.parameters[ACTIONS[action_name][y + 1]] = param
+
+        return goal_action
 
 
 @dataclass
@@ -1624,7 +1763,7 @@ class AI(Mutable):
         ans += ",\n".join(goal.to_csv() for goal in self.goal_rules)
         ans += "\n"
         ans += "\n|DUC\n"
-        ans += "lol I will add a descriptor later leave this line\n" # TODO
+        ans += "lol I will add a descriptor later leave this line\n"  # TODO
         for search, target in zip(self.duc_search, self.duc_target):
             ans += f"{search.export()},{target.export()}\n"
         ans += (
@@ -1636,3 +1775,63 @@ class AI(Mutable):
         ans += "\n"
 
         return ans
+
+    @classmethod
+    def from_csv(cls, csv: str) -> Self:
+        (
+            _,
+            research,
+            buildings,
+            build_forward,
+            units,
+            strategic_numbers,
+            attack_rules,
+            goals,
+            duc,
+            goal_actions,
+        ) = [x.split("\n") for x in csv.split("|")]
+        ai = AI()
+        # TODO Reduce duplication
+        for line in research[2:]:
+            line = line.split(",")
+            if line[0]:
+                ai.simples[int(line[7])] = SimpleRule.from_csv("research", line)
+        for line in buildings[2:]:
+            line = line.split(",")
+            if line[0]:
+                ai.simples[int(line[8])] = SimpleRule.from_csv("build", line)
+        for line in build_forward[2:]:
+            line = line.split(",")
+            if line[0]:
+                ai.simples[int(line[8])] = SimpleRule.from_csv("build-forward", line)
+        for line in units[2:]:
+            line = line.split(",")
+            if line[0]:
+                ai.simples[int(line[8])] = SimpleRule.from_csv("train", line)
+        for line in strategic_numbers[2:]:
+            line = line.split(",")
+            if line[0]:
+                ai.simples[int(line[8])] = SimpleRule.from_csv(
+                    "strategic_numbers", line
+                )
+        for line in attack_rules[2:]:
+            line = line.split(",")
+            if line[0]:
+                ai.attack_rules.append(AttackRule.from_csv(line))
+        for line in goals[2:]:
+            line = line.split(",")
+            if line[0]:
+                ai.goal_rules.append(Goal.from_csv(line))
+        for line in duc[2::2]:
+            line = line.split(",")
+            if line[0]:
+                ai.duc_search.append(DUCSearch.from_csv(line))
+        for line in duc[3::2]:
+            line = line.split(",")
+            if line[0]:
+                ai.duc_target.append(DUCTarget.from_csv(line))
+        for line in goal_actions[2:]:
+            line = line.split(",")
+            if line[0]:
+                ai.goal_actions.append(GoalAction.from_csv(line))
+        return ai
