@@ -16,8 +16,9 @@ def write_from_csv(file: str) -> None:
 
 
 def read(string: str) -> None:
-    with open("edittable.csv", "w+", encoding="utf-8") as f:
-        f.write(AI.from_file(string).to_csv())
+    ai = AI.from_file(string)
+    with open("edittable.csv", "w", encoding="utf-8") as f:
+        f.write(ai.to_csv())
 
 
 def swap(name1: str, name2: str) -> None:
