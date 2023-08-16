@@ -6,100 +6,25 @@ import subprocess
 import time
 from ctypes import windll
 from dataclasses import dataclass
-from typing import Self, Sequence
+from typing import Any, Self, Sequence
 
 import msgpackrpc
+
+from src.globals import (
+    ALL_CIVILISATIONS,
+    DIFFICULTIES,
+    GAME_TYPES,
+    MAP_SIZES,
+    MAPS,
+    REVEAL_MAP_TYPES,
+    STARTING_AGES,
+    STARTING_RESOURCES,
+    VICTORY_TYPES,
+)
 
 DEFAULT_GAME_PATH = (
     "C:\\Program Files\\Microsoft Games\\age of empires ii\\Age2_x1\\age2_x1.exe"
 )
-
-all_civilisations = {
-    "britons": 1,
-    "franks": 2,
-    "goths": 3,
-    "teutons": 4,
-    "japanese": 5,
-    "chinese": 6,
-    "byzantine": 7,
-    "persians": 8,
-    "saracens": 9,
-    "turks": 10,
-    "vikings": 11,
-    "mongols": 12,
-    "celts": 13,
-    "spanish": 14,
-    "aztec": 15,
-    "mayan": 16,
-    "huns": 17,
-    "koreans": 18,
-    "random": 19,
-}
-
-maps = {
-    "arabia": 21,  # was 9, replaced with 21, migration is now dry arabia
-    "archipelago": 10,
-    "baltic": 11,
-    "black_forest": 12,
-    "coastal": 13,
-    "continental": 14,
-    "crater_cake": 15,
-    "fortress": 16,
-    "gold_rush": 17,
-    "highland": 18,
-    "islands": 19,
-    "mediterranean": 20,
-    "migration": 21,
-    "rivers": 22,
-    "team_islands": 23,
-    "random_map": 24,
-    "random": 24,
-    "scandinavia": 25,
-    "mongolia": 26,
-    "yucatan": 27,
-    "salt_marsh": 28,
-    "arena": 29,
-    "oasis": 31,
-    "ghost_lake": 32,
-    "nomad": 33,
-    "iberia": 34,
-    "britain": 35,
-    "mideast": 36,
-    "texas": 37,
-    "italy": 38,
-    "central_america": 39,
-    "france": 40,
-    "norse_lands": 41,
-    "sea_of_japan": 42,
-    "byzantium": 43,
-    "random_land_map": 45,
-    "random_real_world_map": 47,
-    "blind_random": 48,
-    "conventional_random_map": 49,
-}
-
-map_sizes = {"tiny": 0, "small": 1, "medium": 2, "normal": 3, "large": 4, "giant": 5}
-difficulties = {"hardest": 0, "hard": 1, "moderate": 2, "standard": 3, "easiest": 4}
-game_types = {
-    "random_map": 0,
-    "regicide": 1,
-    "death_match": 2,
-    "scenario": 3,
-    "king_of_the_hill": 4,
-    "wonder_race": 6,
-    "turbo_random_map": 8,
-}
-starting_resources = {"standard": 0, "low": 1, "medium": 2, "high": 3}
-reveal_map_types = {"normal": 1, "explored": 2, "all_visible": 3}
-starting_ages = {
-    "standard": 0,
-    "dark": 2,
-    "feudal": 3,
-    "castle": 4,
-    "imperial": 5,
-    "post-imperial": 6,
-}
-victory_types = {"standard": 0, "conquest": 1, "relics": 4, "time_limit": 7, "score": 8}
 
 
 def get_key_by_value(dictionary: dict[str, int], value: int) -> str | None:
@@ -143,27 +68,27 @@ class GameSettings:
         civilisations = list(civilisations) if civilisations else []
         self.names = names
         self.civilisations = self.__correct_civilizations(civilisations, default="huns")
-        self.map_id = self.__correct_setting(map_id, maps, "arabia", "map name/type")
+        self.map_id = self.__correct_setting(map_id, MAPS, "arabia", "map name/type")
         self.map_size = self.__correct_setting(
-            map_size, map_sizes, "medium", "map size"
+            map_size, MAP_SIZES, "medium", "map size"
         )
         self.difficulty = self.__correct_setting(
-            difficulty, difficulties, "hard", "difficulty"
+            difficulty, DIFFICULTIES, "hard", "difficulty"
         )
         self.game_type = self.__correct_setting(
-            game_type, game_types, "random_map", "game type"
+            game_type, GAME_TYPES, "random_map", "game type"
         )
         self.resources = self.__correct_setting(
-            resources, starting_resources, "standard", "starting resources"
+            resources, STARTING_RESOURCES, "standard", "starting resources"
         )
         self.reveal_map = self.__correct_setting(
-            reveal_map, reveal_map_types, "normal", "reveal map"
+            reveal_map, REVEAL_MAP_TYPES, "normal", "reveal map"
         )
         self.starting_age = self.__correct_setting(
-            starting_age, starting_ages, "dark", "starting age"
+            starting_age, STARTING_AGES, "dark", "starting age"
         )
         self.victory_type = self.__correct_setting(
-            victory_type, victory_types, "conquest", "victory type (WIP)"
+            victory_type, VICTORY_TYPES, "conquest", "victory type (WIP)"
         )
         self.victory_value = 0  # TODO: Make this work.
         self.game_time_limit = max(0, game_time_limit)
@@ -208,14 +133,14 @@ class GameSettings:
             civilizations.extend([default] * (len(self.names) - len(civilizations)))
 
         for civ in civilizations:
-            if civ in all_civilisations.values():
+            if civ in ALL_CIVILISATIONS.values():
                 assert isinstance(civ, int)
                 result.append(civ)
-            elif civ in all_civilisations:
-                result.append(all_civilisations[civ])
+            elif civ in ALL_CIVILISATIONS:
+                result.append(ALL_CIVILISATIONS[civ])
             else:
                 print(f"Civ {civ} is not valid. Defaulting to {default}.")
-                result.append(all_civilisations[default])
+                result.append(ALL_CIVILISATIONS[default])
         return result
 
     def clone(self) -> Self:
@@ -273,13 +198,13 @@ class GameStats:
 
     def __str__(self) -> str:
         string = (
-            f"Played @ {get_key_by_value(maps, self._settings.map_id)}"
-            f"[{get_key_by_value(map_sizes, self._settings.map_size)}] \n"
+            f"Played @ {get_key_by_value(MAPS, self._settings.map_id)}"
+            f"[{get_key_by_value(MAP_SIZES, self._settings.map_size)}] \n"
             f"Elapsed Game Time: {self.elapsed_game_time} \n\n"
         )
         for i, ps in self.player_stats.items():
             string += (
-                f"Player {i} '{ps.name}' ({get_key_by_value(all_civilisations, self._settings.civs[i])}) \n"
+                f"Player {i} '{ps.name}' ({get_key_by_value(ALL_CIVILISATIONS, self._settings.civs[i])}) \n"
                 f"\t\t Score: {ps.score} \n"
                 f"\t\t Alive: {ps.alive} \n"
             )
