@@ -1,4 +1,6 @@
+from abc import ABC, abstractmethod
 import asyncio
+import copy
 import datetime
 import enum
 import os
@@ -6,32 +8,193 @@ import subprocess
 import time
 from ctypes import windll
 from dataclasses import dataclass
-from typing import Any, Self, Sequence
+from typing import Self, Sequence
 
 import msgpackrpc
-
-from src.globals import (
-    ALL_CIVILISATIONS,
-    DIFFICULTIES,
-    GAME_TYPES,
-    MAP_SIZES,
-    MAPS,
-    REVEAL_MAP_TYPES,
-    STARTING_AGES,
-    STARTING_RESOURCES,
-    VICTORY_TYPES,
-)
 
 DEFAULT_GAME_PATH = (
     "C:\\Program Files\\Microsoft Games\\age of empires ii\\Age2_x1\\age2_x1.exe"
 )
 
 
-def get_key_by_value(dictionary: dict[str, int], value: int) -> str | None:
-    for k, v in dictionary.items():
-        if v == value:
-            return k
-    return None
+class Setting(enum.Enum, ABC):
+    @classmethod
+    def _missing_(cls, value: object) -> Self:
+        if isinstance(value, str):
+            for member in cls:
+                if member.name == value:
+                    return member
+        if isinstance(value, int):
+            for member in cls:
+                if member.value == value:
+                    return member
+        default = cls.default()
+        print(
+            f"{cls.__name__} {value} is not valid. Defaulting to {default.name.lower()}."
+        )
+        return default
+
+    @classmethod
+    @abstractmethod
+    def default(cls) -> Self:
+        ...
+
+
+class Civilisation(Setting):
+    BRITONS = 1
+    FRANKS = 2
+    GOTHS = 3
+    TEUTONS = 4
+    JAPANESE = 5
+    CHINESE = 6
+    BYZANTINE = 7
+    PERSIANS = 8
+    SARACENS = 9
+    TURKS = 10
+    VIKINGS = 11
+    MONGOLS = 12
+    CELTS = 13
+    SPANISH = 14
+    AZTEC = 15
+    MAYAN = 16
+    HUNS = 17
+    KOREANS = 18
+    RANDOM = 19
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.HUNS
+
+
+class Map(Setting):
+    ARABIA = 21
+    ARCHIPELAGO = 10
+    BALTIC = 11
+    BLACK_FOREST = 12
+    COASTAL = 13
+    CONTINENTAL = 14
+    CRATER_CAKE = 15
+    FORTRESS = 16
+    GOLD_RUSH = 17
+    HIGHLAND = 18
+    ISLANDS = 19
+    MEDITERRANEAN = 20
+    MIGRATION = 21
+    RIVERS = 22
+    TEAM_ISLANDS = 23
+    RANDOM_MAP = 24
+    RANDOM = 24
+    SCANDINAVIA = 25
+    MONGOLIA = 26
+    YUCATAN = 27
+    SALT_MARSH = 28
+    ARENA = 29
+    OASIS = 31
+    GHOST_LAKE = 32
+    NOMAD = 33
+    IBERIA = 34
+    BRITAIN = 35
+    MIDEAST = 36
+    TEXAS = 37
+    ITALY = 38
+    CENTRAL_AMERICA = 39
+    FRANCE = 40
+    NORSE_LANDS = 41
+    SEA_OF_JAPAN = 42
+    BYZANTIUM = 43
+    RANDOM_LAND_MAP = 45
+    RANDOM_REAL_WORLD_MAP = 47
+    BLIND_RANDOM = 48
+    CONVENTIONAL_RANDOM_MAP = 49
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.ARABIA
+
+
+class MapSize(Setting):
+    TINY = 0
+    SMALL = 1
+    MEDIUM = 2
+    NORMAL = 3
+    LARGE = 4
+    GIANT = 5
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.MEDIUM
+
+
+class Difficulty(Setting):
+    HARDEST = 0
+    HARD = 1
+    MODERATE = 2
+    STANDARD = 3
+    EASIEST = 4
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.HARD
+
+
+class GameType(Setting):
+    RANDOM_MAP = 0
+    REGICIDE = 1
+    DEATH_MATCH = 2
+    SCENARIO = 3
+    KING_OF_THE_HILL = 4
+    WONDER_RACE = 6
+    TURBO_RANDOM_MAP = 8
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.RANDOM_MAP
+
+
+class StartingResources(Setting):
+    STANDARD = 0
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.LOW
+
+
+class RevealMap(Setting):
+    NORMAL = 1
+    EXPLORED = 2
+    ALL_VISIBLE = 3
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.NORMAL
+
+
+class StartingAge(Setting):
+    STANDARD = 0
+    DARK = 2
+    FEUDAL = 3
+    CASTLE = 4
+    IMPERIAL = 5
+    POST_IMPERIAL = 6  # ! Check if the string _has_ to be "post-imperial"
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.DARK
+
+
+class VictoryType(Setting):
+    STANDARD = 0
+    CONQUEST = 1
+    RELICS = 4
+    TIME_LIMIT = 7
+    SCORE = 8
+
+    @classmethod
+    def default(cls) -> Self:
+        return cls.CONQUEST
 
 
 class GameStatus(enum.Enum):
@@ -52,112 +215,61 @@ class GameSettings:
     def __init__(
         self,
         names: list[str],
-        civilisations: Sequence[str | int] | None,
-        map_id: str | int = "arabia",
-        map_size: str | int = "tiny",
-        difficulty: str | int = "hard",
-        game_type: str | int = "random_map",
-        resources: str | int = "low",
-        reveal_map: str | int = "normal",
-        starting_age: str | int = "dark",
-        victory_type: str | int = "conquest",
+        civilisations: Sequence[str | int | Civilisation] | None,
+        map_id: str | int | Map = Map.default(),
+        map_size: str | int | MapSize = MapSize.default(),
+        difficulty: str | int | Difficulty = Difficulty.default(),
+        game_type: str | int | GameType = GameType.default(),
+        resources: str | int | StartingResources = StartingResources.default(),
+        reveal_map: str | int | RevealMap = RevealMap.default(),
+        starting_age: str | int | StartingAge = StartingAge.default(),
+        victory_type: str | int | VictoryType = VictoryType.default(),
         game_time_limit: int = 0,
         speed: bool = True,
     ) -> None:
         names = names or []
         civilisations = list(civilisations) if civilisations else []
         self.names = names
-        self.civilisations = self.__correct_civilizations(civilisations, default="huns")
-        self.map_id = self.__correct_setting(map_id, MAPS, "arabia", "map name/type")
-        self.map_size = self.__correct_setting(
-            map_size, MAP_SIZES, "medium", "map size"
-        )
-        self.difficulty = self.__correct_setting(
-            difficulty, DIFFICULTIES, "hard", "difficulty"
-        )
-        self.game_type = self.__correct_setting(
-            game_type, GAME_TYPES, "random_map", "game type"
-        )
-        self.resources = self.__correct_setting(
-            resources, STARTING_RESOURCES, "standard", "starting resources"
-        )
-        self.reveal_map = self.__correct_setting(
-            reveal_map, REVEAL_MAP_TYPES, "normal", "reveal map"
-        )
-        self.starting_age = self.__correct_setting(
-            starting_age, STARTING_AGES, "dark", "starting age"
-        )
-        self.victory_type = self.__correct_setting(
-            victory_type, VICTORY_TYPES, "conquest", "victory type (WIP)"
-        )
+        self.civilisations = self._correct_civilizations(civilisations, default="huns")
+        self.map = Map(map_id)
+        self.map_size = MapSize(map_size)
+        self.difficulty = Difficulty(difficulty)
+        self.game_type = GameType(game_type)
+        self.resources = StartingResources(resources)
+        self.reveal_map = RevealMap(reveal_map)
+        self.starting_age = StartingAge(starting_age)
+        self.victory_type = VictoryType(victory_type)
         self.victory_value = 0  # TODO: Make this work.
         self.game_time_limit = max(0, game_time_limit)
         self.speed = speed
 
     @property
-    def map(self) -> int:
-        return self.map_id
+    def map_id(self) -> int:
+        return self.map.value
 
     @property
-    def civs(self) -> list[int]:
+    def civs(self) -> list[Civilisation]:
         return self.civilisations
 
-    @staticmethod
-    def __correct_setting(
-        value: str | int,
-        possible_values: dict[str, int],
-        default: str,
-        setting_name: str,
-    ) -> int:
-        if value in possible_values.values():
-            assert isinstance(value, int)
-            return value
-        assert isinstance(value, str)
-        if (v := value.lower()) in possible_values:
-            return possible_values[v]
-        print(
-            f"Warning! Value {value} not valid for setting {setting_name}. Defaulting to {default}."
-        )
-        return possible_values[default]
-
-    def __correct_civilizations(
-        self, civilizations: list[str | int], default: str = "huns"
-    ) -> list[int]:
-        result: list[int] = []
+    def _correct_civilizations(
+        self,
+        civilizations: list[str | int | Civilisation],
+        default: str = Civilisation.default().name.lower(),
+    ) -> list[Civilisation]:
+        civs = [Civilisation(civ) for civ in civilizations]
         if len(civilizations) < len(self.names):
             print(
                 "The number of civilisations provided is less than the number of names."
                 "For every player that does not have a civilisation provided for it, "
                 f"it will default to {default}."
             )
-            civilizations.extend([default] * (len(self.names) - len(civilizations)))
-
-        for civ in civilizations:
-            if civ in ALL_CIVILISATIONS.values():
-                assert isinstance(civ, int)
-                result.append(civ)
-            elif civ in ALL_CIVILISATIONS:
-                result.append(ALL_CIVILISATIONS[civ])
-            else:
-                print(f"Civ {civ} is not valid. Defaulting to {default}.")
-                result.append(ALL_CIVILISATIONS[default])
-        return result
+            civs.extend(
+                [Civilisation.default()] * (len(self.names) - len(civilizations))
+            )
+        return civs
 
     def clone(self) -> Self:
-        return GameSettings(
-            self.names,
-            self.civilisations,
-            self.map_id,
-            self.map_size,
-            self.difficulty,
-            self.game_type,
-            self.resources,
-            self.reveal_map,
-            self.starting_age,
-            self.victory_type,
-            self.game_time_limit,
-            self.speed,
-        )
+        return copy.deepcopy(self)
 
 
 @dataclass
@@ -198,13 +310,13 @@ class GameStats:
 
     def __str__(self) -> str:
         string = (
-            f"Played @ {get_key_by_value(MAPS, self._settings.map_id)}"
-            f"[{get_key_by_value(MAP_SIZES, self._settings.map_size)}] \n"
+            f"Played @ {self._settings.map.name}"
+            f"[{self._settings.map_size.name}] \n"
             f"Elapsed Game Time: {self.elapsed_game_time} \n\n"
         )
         for i, ps in self.player_stats.items():
             string += (
-                f"Player {i} '{ps.name}' ({get_key_by_value(ALL_CIVILISATIONS, self._settings.civs[i])}) \n"
+                f"Player {i} '{ps.name}' ({self._settings.civs[i].name}) \n"
                 f"\t\t Score: {ps.score} \n"
                 f"\t\t Alive: {ps.alive} \n"
             )
@@ -314,7 +426,7 @@ class Game:
         self._settings = settings
         try:
             self._rpc.call_async("ResetGameSettings")  # type: ignore
-            self._rpc.call_async("SetGameMapType", settings.map)  # type: ignore
+            self._rpc.call_async("SetGameMapType", settings.map_id)  # type: ignore
             self._rpc.call_async(  # type: ignore
                 "SetGameDifficulty", settings.difficulty
             )  # Set to hard
