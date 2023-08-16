@@ -14,7 +14,7 @@ from src.models import (
     Goal,
     GoalAction,
     PopulationCondition,
-    Simple,
+    SimpleRule,
 )
 
 
@@ -39,13 +39,13 @@ def write_from_csv(file: str) -> None:
         goal_actions,
     ) = [x.split("\n") for x in data.split("|")]
 
-    simple_dict: dict[str, Simple] = {}
+    simple_dict: dict[str, SimpleRule] = {}
 
     for line in research[2:]:
         line = line.split(",")
         if not line[0]:
             continue
-        temp = Simple.generate()
+        temp = SimpleRule.generate()
         temp.type = "research"
         temp.parameters["TechId"] = line[0]
         temp.age_required = [line[1]]
@@ -61,7 +61,7 @@ def write_from_csv(file: str) -> None:
         line = line.split(",")
         if not line[0]:
             continue
-        temp = Simple.generate()
+        temp = SimpleRule.generate()
         temp.type = "build"
         temp.parameters["Buildable"] = line[0]
         temp.threshold = int(line[2])
@@ -79,7 +79,7 @@ def write_from_csv(file: str) -> None:
         line = line.split(",")
         if not line[0]:
             continue
-        temp = Simple.generate()
+        temp = SimpleRule.generate()
         temp.type = "build-forward"
         temp.parameters["Buildable"] = line[0]
         temp.threshold = int(line[2])
@@ -96,7 +96,7 @@ def write_from_csv(file: str) -> None:
         line = line.split(",")
         if not line[0]:
             continue
-        temp = Simple.generate()
+        temp = SimpleRule.generate()
         temp.type = "train"
         temp.parameters["Trainable"] = line[0]
         temp.threshold = int(line[2])
@@ -113,7 +113,7 @@ def write_from_csv(file: str) -> None:
         line = line.split(",")
         if not line[0]:
             continue
-        temp = Simple.generate()
+        temp = SimpleRule.generate()
         temp.type = "strategic_number"
         temp.parameters["SnId"] = line[0]
         temp.strategic_numbers[line[0]] = line[2]

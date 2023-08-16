@@ -259,7 +259,7 @@ def _write_actions(actions: list[Action]) -> str:
 
 
 @dataclass
-class Rule(Mutable):
+class ComplexRule(Mutable):
     fact_length: int
     action_length: int
     age_required: list[str]
@@ -316,13 +316,13 @@ class Rule(Mutable):
         local_facts = [Fact.generate() for _ in range(settings.max_fact_length)]
         local_actions = [Action.generate() for _ in range(settings.max_fact_length)]
 
-        return Rule(
+        return ComplexRule(
             fact_length, action_length, age_required, local_facts, local_actions
         )
 
     def mutate(self, mutation_chance: float, in_place: bool = False) -> Self:
         if random.random() < mutation_chance / 5:
-            return Rule.generate()
+            return ComplexRule.generate()
 
         rule = self if in_place else copy.deepcopy(self)
         if random.random() < mutation_chance:
@@ -355,7 +355,7 @@ class Rule(Mutable):
 
 
 @dataclass
-class Simple(Mutable):
+class SimpleRule(Mutable):
     type: str
     parameters: Parameters
     threshold: int
@@ -467,7 +467,7 @@ class Simple(Mutable):
         game_time = random.randint(0, 7200)
         requirement_count = random.randint(0, 10)
 
-        return Simple(
+        return SimpleRule(
             simple_type,
             params,
             threshold,
@@ -565,8 +565,8 @@ class Simple(Mutable):
 
         return simple
 
-    def to_complex(self) -> Rule:
-        rule = Rule.generate()
+    def to_complex(self) -> ComplexRule:
+        rule = ComplexRule.generate()
         for fact in rule.local_facts:
             fact.is_not = 0
             fact.and_or = "and"
@@ -1255,8 +1255,8 @@ class GoalAction(Mutable):
 
 @dataclass
 class AI(Mutable):
-    simples: list[Simple] = field(default_factory=list)
-    rules: list[Rule] = field(default_factory=list)
+    simples: list[SimpleRule] = field(default_factory=list)
+    rules: list[ComplexRule] = field(default_factory=list)
     attack_rules: list[AttackRule] = field(default_factory=list)
     duc_search: list[DUCSearch] = field(default_factory=list)
     duc_target: list[DUCTarget] = field(default_factory=list)
@@ -1265,10 +1265,10 @@ class AI(Mutable):
 
     @classmethod
     def generate(cls) -> Self:
-        simple_list: list[Simple] = []
+        simple_list: list[SimpleRule] = []
         if settings.villager_preset:
             # build villagers
-            temp = Simple.generate()
+            temp = SimpleRule.generate()
             temp.type = "train"
             temp.parameters["Trainable"] = "83"
             temp.threshold = 30
@@ -1276,7 +1276,7 @@ class AI(Mutable):
 
             simple_list.append(temp)
 
-            temp = Simple.generate()
+            temp = SimpleRule.generate()
             temp.type = "train"
             temp.parameters["Trainable"] = "83"
             temp.threshold = 80
@@ -1284,9 +1284,11 @@ class AI(Mutable):
 
             simple_list.append(temp)
 
-        simple_list.extend([Simple.generate() for _ in range(settings.simple_count)])
+        simple_list.extend(
+            [SimpleRule.generate() for _ in range(settings.simple_count)]
+        )
 
-        ai = [Rule.generate() for _ in range(settings.ai_length)]
+        ai = [ComplexRule.generate() for _ in range(settings.ai_length)]
         attack_rules = [
             AttackRule.generate() for _ in range(settings.attack_rule_count)
         ]
@@ -1313,7 +1315,7 @@ class AI(Mutable):
         while ai == self:
             ai.simples = [simple.mutate(mutation_chance) for simple in ai.simples]
 
-            new_rules: list[Rule] = []
+            new_rules: list[ComplexRule] = []
             if settings.allow_complex:
                 for simple in ai.simples:
                     if random.random() < mutation_chance / 2:
@@ -1322,7 +1324,7 @@ class AI(Mutable):
 
             for _ in range(4):
                 if random.random() < mutation_chance:
-                    ai.simples.append(Simple.generate())
+                    ai.simples.append(SimpleRule.generate())
 
             if random.random() < mutation_chance / 2:
                 ai.simples.remove(random.choice(ai.simples))
@@ -1330,7 +1332,7 @@ class AI(Mutable):
             ai.rules = [rule.mutate(mutation_chance) for rule in ai.rules]
 
             if random.random() < mutation_chance / 2:
-                ai.rules.append(Rule.generate())
+                ai.rules.append(ComplexRule.generate())
 
             if len(ai.rules) > 0:
                 if random.random() < mutation_chance / 2:
