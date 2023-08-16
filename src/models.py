@@ -379,23 +379,35 @@ class Simple(Mutable):
             try:
                 int(self.requirement)
             except ValueError:
-                ans += f"\n\t({'building-type-count-total' if self.requirement in BUILDABLE else 'unit-type-count-total'} {self.requirement} > {self.requirement_count})"
+                ans += (
+                    f"\n\t({'building-type' if self.requirement in BUILDABLE else 'unit-type'}"
+                    f"-count-total {self.requirement} > {self.requirement_count})"
+                )
             else:
                 ans += f"\n\t(up-research-status c: {self.requirement} >= 2)"
         if self.type == "train":
             ans += f"\n\t(can-train {self.parameters['Trainable']})"
-            ans += f"\n\t(unit-type-count-total {self.parameters['Trainable']} < {max(0, self.threshold)})"
+            ans += (
+                f"\n\t(unit-type-count-total {self.parameters['Trainable']} "
+                f"< {max(0, self.threshold)})"
+            )
             ans += f"=>\n\t(train {self.parameters['Trainable']})"
         elif self.type in {"build", "build-forward"}:
             ans += f"\n\t(can-build {self.parameters['Buildable']})"
-            ans += f"\n\t(building-type-count-total {self.parameters['Buildable']} < {max(0, self.threshold)})"
+            ans += (
+                f"\n\t(building-type-count-total {self.parameters['Buildable']} "
+                f"< {max(0, self.threshold)})"
+            )
             ans += f"=>\n\t({self.type} {self.parameters['Buildable']})"
         elif self.type == "research":
             ans += f"\n\t(can-research {self.parameters['TechId']})"
             ans += f"=>\n\t(research {self.parameters['TechId']})"
         elif self.type == "strategic-number":
             ans += "\n\t(true)"
-            ans += f"=>\n\t(set-strategic-number {self.parameters['SnId']} {self.strategic_numbers[str(self.parameters['SnId'])]})\n\t(disable-self)"
+            ans += (
+                f"=>\n\t(set-strategic-number {self.parameters['SnId']} "
+                f"{self.strategic_numbers[str(self.parameters['SnId'])]})\n\t(disable-self)"
+            )
         ans += ")\n"
 
         return ans
@@ -878,13 +890,12 @@ class AttackRule(Mutable):
         return rule
 
     def export(self) -> str:
-        ans = (
+        return (
             f"{self.type},{self.age_required},{self.enemy_age_required},"
             f"{self.population1.export()},{self.population2.export()},{self.game_time.export()},"
-            f"{self.retreat_unit},{self.attack_percent},{self.retreat_to},{self.goal},{self.use_goal}"
+            f"{self.retreat_unit},{self.attack_percent},{self.retreat_to},"
+            f"{self.goal},{self.use_goal}"
         )
-
-        return ans
 
 
 @dataclass
