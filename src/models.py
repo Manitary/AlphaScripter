@@ -69,7 +69,7 @@ class GoalFact:
     fact_name: str
     parameters: Parameters
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         return (
             f"{self.fact_name} "
             f"{' '.join(tuple(str(self.parameters[x]) for x in FACTS[self.fact_name]))}"
@@ -92,7 +92,7 @@ class Goal(Mutable):
     used_facts: list[GoalFact]
     fact_count: int
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         ans = "\n(defrule"
         if self.use_goal:
             ans += f"\n\t(goal {self.goal_num} 1)"
@@ -157,7 +157,7 @@ class Fact(Mutable):
     parameters: Parameters
     and_or: str
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         return (
             f"{self.fact_name} "
             f"{' '.join(tuple(str(self.parameters[x]) for x in FACTS[self.fact_name]))}"
@@ -216,7 +216,7 @@ class Action(Mutable):
     parameters: Parameters
     strategic_numbers: StrategicNumbers
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         if self.action_name == "set-strategic-number":
             return (
                 f"{self.action_name}"
@@ -266,7 +266,7 @@ class Rule(Mutable):
     local_facts: list[Fact]
     local_actions: list[Action]
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         ans = f"\n(defrule{self._write_facts()}\n=>{_write_actions(self.local_actions)})\n"
         if len(ans.split()) > 20:
             ans = ""
@@ -367,7 +367,7 @@ class Simple(Mutable):
     goal: int = 1
     use_goal: bool = False
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         ans = "\n(defrule"
         if self.use_goal:
             ans += f"\n\t(goal {self.goal} 1)"
@@ -651,7 +651,7 @@ class PopulationCondition:
             return True
         return False
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         return f"{self.type} {self.comparison} {self.amount}"
 
     @classmethod
@@ -684,7 +684,7 @@ class GameTimeCondition:
             return True
         return False
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         return f"{self.comparison} {self.amount}"
 
     @classmethod
@@ -712,7 +712,7 @@ class AttackRule(Mutable):
     goal: int = 1
     use_goal: bool = False
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         ans = "\n(defrule \n"
         if self.use_goal:
             ans += f"\n\t(goal {self.goal} 1)"
@@ -893,7 +893,7 @@ class Filter:
     compare: str
     value: int
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         return f"{self.object} {self.compare} {self.value}"
 
     @classmethod
@@ -919,7 +919,7 @@ class DUCSearch(Mutable):
     selected_max: int
     distance_check: bool
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         used_const = "enemyPlayerID"
         ans = (
             "\n(defrule\n\t(true)\n=>"
@@ -1036,7 +1036,7 @@ class DUCTarget(Mutable):
     goal: int = 1
     use_goal: bool = False
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         used_const = "enemyPlayerID" if self.targeted_player == 2 else "selfPlayerID"
         ans = (
             "\n(defrule\n\t(true)\n=>\n\t(enable-timer "
@@ -1182,7 +1182,7 @@ class GoalAction(Mutable):
     used_goals: int
     used_actions: int
 
-    def __str__(self) -> str:
+    def write(self) -> str:
         ans = "\n(defrule"
         ans += "".join((f"\n\t(goal {g} {v})") for g, v in zip(self.goals, self.values))
         ans += f"\n=>\n\t{_write_actions(self.actions)})\n\n"
@@ -1468,21 +1468,21 @@ class AI(Mutable):
         with open(settings.local_drive + ai_name + ".per", "w", encoding="utf-8") as f:
             f.write(default_ai)
             for rule in self.goal_rules:
-                f.write(str(rule))
+                f.write(rule.write())
             for simple in self.simples:
-                f.write(str(simple))
+                f.write(simple.write())
             for goal_action in self.goal_actions:
-                f.write(str(goal_action))
+                f.write(goal_action.write())
             if settings.allow_attack_rules:
                 for attack_rule in self.attack_rules:
-                    f.write(str(attack_rule))
+                    f.write(attack_rule.write())
             if settings.allow_DUC:
                 for search, target in zip(self.duc_search, self.duc_target):
-                    f.write(str(search))
-                    f.write(str(target))
+                    f.write(search.write())
+                    f.write(target.write())
             if settings.allow_complex:
                 for rule in self.rules:
-                    f.write(str(rule))
+                    f.write(rule.write())
 
     def save_to_file(self, file_name: str) -> None:
         # ! make AI objects exportable in JSON format
