@@ -1,11 +1,12 @@
-from abc import ABC, abstractmethod
 import asyncio
 import copy
 import datetime
 import enum
+import itertools
 import os
 import subprocess
 import time
+from abc import ABC, abstractmethod
 from ctypes import windll
 from dataclasses import dataclass, field
 from typing import Self, Sequence
@@ -17,7 +18,7 @@ DEFAULT_GAME_PATH = (
 )
 
 
-class Setting(enum.Enum, ABC):
+class GameSetting(enum.Enum, ABC):
     @classmethod
     def _missing_(cls, value: object) -> Self:
         if isinstance(value, str):
@@ -40,7 +41,7 @@ class Setting(enum.Enum, ABC):
         ...
 
 
-class Civilisation(Setting):
+class Civilisation(GameSetting):
     BRITONS = 1
     FRANKS = 2
     GOTHS = 3
@@ -66,7 +67,7 @@ class Civilisation(Setting):
         return cls.HUNS
 
 
-class Map(Setting):
+class Map(GameSetting):
     ARABIA = 21
     ARCHIPELAGO = 10
     BALTIC = 11
@@ -112,7 +113,7 @@ class Map(Setting):
         return cls.ARABIA
 
 
-class MapSize(Setting):
+class MapSize(GameSetting):
     TINY = 0
     SMALL = 1
     MEDIUM = 2
@@ -125,7 +126,7 @@ class MapSize(Setting):
         return cls.MEDIUM
 
 
-class Difficulty(Setting):
+class Difficulty(GameSetting):
     HARDEST = 0
     HARD = 1
     MODERATE = 2
@@ -137,7 +138,7 @@ class Difficulty(Setting):
         return cls.HARD
 
 
-class GameType(Setting):
+class GameType(GameSetting):
     RANDOM_MAP = 0
     REGICIDE = 1
     DEATH_MATCH = 2
@@ -151,7 +152,7 @@ class GameType(Setting):
         return cls.RANDOM_MAP
 
 
-class StartingResources(Setting):
+class StartingResources(GameSetting):
     STANDARD = 0
     LOW = 1
     MEDIUM = 2
@@ -162,7 +163,7 @@ class StartingResources(Setting):
         return cls.LOW
 
 
-class RevealMap(Setting):
+class RevealMap(GameSetting):
     NORMAL = 1
     EXPLORED = 2
     ALL_VISIBLE = 3
@@ -172,7 +173,7 @@ class RevealMap(Setting):
         return cls.NORMAL
 
 
-class StartingAge(Setting):
+class StartingAge(GameSetting):
     STANDARD = 0
     DARK = 2
     FEUDAL = 3
@@ -185,7 +186,7 @@ class StartingAge(Setting):
         return cls.DARK
 
 
-class VictoryType(Setting):
+class VictoryType(GameSetting):
     STANDARD = 0
     CONQUEST = 1
     RELICS = 4
@@ -227,9 +228,14 @@ class GameSettings:
         game_time_limit: int = 0,
         speed: bool = True,
     ) -> None:
-        self.names = names
         civilisations = list(civilisations) if civilisations else []
-        self.civilisations = self._correct_civilizations(civilisations, default="huns")
+        civilisations = self._correct_civilizations(
+            num_players=len(names), civilizations=civilisations, default="huns"
+        )
+        self.players = {
+            i: Player(name, civilisation)
+            for i, (name, civilisation) in enumerate(zip(names, civilisations), 1)
+        }
         self.map = Map(map_id)
         self.map_size = MapSize(map_size)
         self.difficulty = Difficulty(difficulty)
@@ -247,38 +253,58 @@ class GameSettings:
         return self.map.value
 
     @property
+    def names(self) -> list[str]:
+        return [p.name for p in self.players.values()]
+
+    @property
     def civs(self) -> list[Civilisation]:
-        return self.civilisations
+        return [p.civ for p in self.players.values()]
 
     def _correct_civilizations(
         self,
+        num_players: int,
         civilizations: list[str | int | Civilisation],
         default: str = Civilisation.default().name.lower(),
     ) -> list[Civilisation]:
         civs = [Civilisation(civ) for civ in civilizations]
-        if len(civs) < len(self.names):
+        if len(civs) < num_players:
             print(
                 "The number of civilisations provided is less than the number of names."
                 "For every player that does not have a civilisation provided for it, "
                 f"it will default to {default}."
             )
-            civs.extend([Civilisation.default()] * (len(self.names) - len(civs)))
+            civs.extend([Civilisation.default()] * (num_players - len(civs)))
         return civs
 
-    def clone(self) -> Self:
-        return copy.deepcopy(self)
+    def make_round_robin(self) -> list[Self]:
+        settings: list[Self] = []
+        for player_1, player_2 in itertools.combinations(self.players.values(), r=2):
+            game_settings = copy.deepcopy(self)
+            game_settings.players = {1: player_1, 2: player_2}
+            settings.append(game_settings)
+        return settings
+
+
+@dataclass(frozen=True)
+class Player:
+    name: str
+    civ: Civilisation
 
 
 @dataclass
 class PlayerStats:
+    player: Player
     index: int
-    name: str
     _alive: bool = field(default=True, init=False)
     _score: int = field(default=0, init=False)
 
     def update(self, score: int, alive: bool) -> None:
         self._score = score
         self._alive = alive
+
+    @property
+    def name(self) -> str:
+        return self.player.name
 
     @property
     def score(self) -> int:
@@ -288,58 +314,72 @@ class PlayerStats:
     def alive(self) -> bool:
         return self._alive
 
+    def __str__(self) -> str:
+        return (
+            f"Player {self.index} '{self.player.name}' ({self.player.civ})\n"
+            f"\t\tScore: {self.score}\n"
+            f"\t\tAlive: {self.alive}\n"
+        )
 
-@dataclass
+
 class GameStats:
-    _settings: GameSettings
-    player_stats: dict[int, PlayerStats] = field(default_factory=dict)
-    elapsed_game_time: int = field(default=0, init=False)
-    winner: int = field(default=0, init=False)
+    __slots__ = (
+        "player_stats",
+        "elapsed_game_time",
+        "winner",
+    )
 
-    def __post_init__(self) -> None:
-        for index, name in enumerate(self._settings.names):
-            self.player_stats[index] = PlayerStats(index=index, name=name)
+    def __init__(self, players: dict[int, Player] | None = None) -> None:
+        players = players or {}
+        self.player_stats = {
+            index: PlayerStats(player, index) for index, player in players.items()
+        }
+        self.elapsed_game_time = 0
+        self.winner = 0
 
     def update_player(self, index: int, score: int, alive: bool) -> None:
         self.player_stats[index].update(score=score, alive=alive)
 
+    def __bool__(self) -> bool:
+        if self.player_stats:
+            return True
+        return False
+
     @property
     def scores(self) -> list[int]:
-        return [self.player_stats[i].score for i, _ in enumerate(self._settings.names)]
+        return [player.score for player in self.player_stats.values()]
 
     @property
     def alives(self) -> list[bool]:
-        return [self.player_stats[i].alive for i, _ in enumerate(self._settings.names)]
+        return [player.alive for player in self.player_stats.values()]
 
     def __str__(self) -> str:
-        string = (
-            f"Played @ {self._settings.map.name} "
-            f"[{self._settings.map_size.name}]\n"
-            f"Elapsed Game Time: {self.elapsed_game_time}\n\n"
+        return f"Elapsed Game Time: {self.elapsed_game_time}\n\n" + "".join(
+            str(player) for player in self.player_stats.values()
         )
-        for i, ps in self.player_stats.items():
-            string += (
-                f"Player {i} '{ps.name}' ({self._settings.civs[i].name})\n"
-                f"\t\t Score: {ps.score}\n"
-                f"\t\t Alive: {ps.alive}\n"
-            )
-        return string
 
 
 class Game:
-    name: str
-    _settings: GameSettings
-    status: GameStatus
-    _process: subprocess.Popen[bytes] | None
-    _rpc: msgpackrpc.Client | None
-    _port: int = 0
-    stats: GameStats
-    debug: bool
+    __slots__ = (
+        "name",
+        "_settings",
+        "status",
+        "_process",
+        "_rpc",
+        "_port",
+        "_stats",
+        "debug",
+    )
 
     def __init__(self, name: str = "GameWithoutName", debug: bool = False) -> None:
         self.name = name
         self.status = GameStatus.INIT
         self.debug = debug
+        self._port = 0
+        self._process: subprocess.Popen[bytes] | None = None
+        self._rpc: msgpackrpc.Client | None = None
+        self._settings: GameSettings | None = None
+        self._stats = GameStats()
 
     async def launch_process(
         self, executable_path: str, dll_path: bytes, multiple: bool, port: int
@@ -349,7 +389,7 @@ class Game:
 
         :param executable_path: The path to the executable of the game.
         :param dll_path: The path to the DLL needed to communicate with the process.
-        :param multiple: Whether multiple processes are going to be launched. Used as a required launch parameter.
+        :param multiple: Whether multiple processes are going to be launched.
         :param port: The port on which to start this process communication channels (using the DLL)
         :return: The process that was started of type ``subprocess.Popen``
         """
@@ -360,7 +400,11 @@ class Game:
                 "so it's probably not the right time to call this launch_process method!"
             )
 
-        launch_options = f"{executable_path}{' -multipleinstances' if multiple else ''} -autogameport {port}"
+        launch_options = (
+            f"{executable_path}"
+            f"{' -multipleinstances' if multiple else ''}"
+            f" -autogameport {port}"
+        )
         aoc_proc = subprocess.Popen(launch_options)
 
         # write dll path into aoc memory
@@ -440,12 +484,10 @@ class Game:
             self._rpc.call_async("SetRunUnfocused", True)  # type: ignore
             self._rpc.call_async("SetRunFullSpeed", settings.speed)  # type: ignore
             # self.call_safe('SetUseInGameResolution', False, game_index=game_index)
-            for index, name in enumerate(settings.names):
-                self._rpc.call_async("SetPlayerComputer", index + 1, name)  # type: ignore
-                self._rpc.call_async(  # type: ignore
-                    "SetPlayerCivilization", index + 1, settings.civilisations[index]
-                )
-                self._rpc.call_async("SetPlayerTeam", index + 1, 0)  # type: ignore
+            for i, player in settings.players.items():
+                self._rpc.call_async("SetPlayerComputer", i, player.name)  # type: ignore
+                self._rpc.call_async("SetPlayerCivilization", i, player.civ)  # type: ignore
+                self._rpc.call_async("SetPlayerTeam", i, 0)  # type: ignore
         except BaseException as e:
             message = (
                 f"Warning! Game Settings could not be applied to game {self.name}"
@@ -453,7 +495,7 @@ class Game:
                 "\nThe rpc client will be closed and the game process will be terminated."
             )
             self.handle_except(e, message)
-        self.stats = GameStats(settings)
+        self._stats = GameStats(settings.players)
         self.status = GameStatus.SETUP
 
     async def start_game(self) -> None:
@@ -480,18 +522,50 @@ class Game:
             self.handle_except(e, message)
         self.status = GameStatus.RUNNING
 
+    async def update_player(
+        self, game_time: int, index: int, player: PlayerStats
+    ) -> None:
+        if self._settings is None:
+            return
+        try:
+            if game_time >= 1.5 * self._settings.game_time_limit:
+                score = 0
+            else:
+                score: int | None = self._rpc.call("GetPlayerScore", index)  # type: ignore
+            alive: bool | None = self._rpc.call("GetPlayerAlive", index)  # type: ignore
+            if score is not None and alive is not None:
+                assert isinstance(score, int)
+                assert isinstance(alive, bool)
+                player.update(score=score, alive=alive)
+            else:
+                player.update(score=0, alive=False)
+                if self.debug:
+                    print(
+                        f"Couldn't get score or alive status for player {player.name}. "
+                        "Setting this score to 0"
+                    )
+
+        except BaseException as e:
+            message = (
+                f"Score and/or alive status for player {player.name} in game {self.name} "
+                f"couldn't be retrieved because of {e}. "
+                "Setting this players' score to 0."
+            )
+            player.update(score=0, alive=False)
+            self.handle_except(e, message)
+
     async def update(self) -> None:
         """
         Check whether the game is still running and extract the stats if it isn't.
         """
+        if self._settings is None:
+            return
         try:
-            is_running: bool = self._rpc.call("GetGameInProgress")  # type: ignore
             game_time = 0
-            assert isinstance(self.stats, GameStats)
-            self.stats.winner = 0
+            self._stats.winner = 0
             try:
                 game_time: int = self._rpc.call("GetGameTime")  # type: ignore
-                self.stats.elapsed_game_time = game_time
+                self._stats.elapsed_game_time = game_time
             except BaseException as e:
                 message = (
                     f"Couldn't get game time for game {self.name} because of {e}. "
@@ -499,50 +573,22 @@ class Game:
                 )
                 self.handle_except(e, message)
 
-            assert isinstance(self._settings, GameSettings)
+            is_running: bool = self._rpc.call("GetGameInProgress")  # type: ignore
             over_time = 0 < self._settings.game_time_limit < game_time
-
-            if not is_running or over_time:
-                temp: list[int] = self._rpc.call("GetWinningPlayers")  # type: ignore
-                if len(temp) > 1:
-                    self.stats.winner = 0
-                else:
-                    self.stats.winner = temp[0]
-                # print(self._rpc.call('GetWinningPlayer'))
-                for index, name in enumerate(self._settings.names):
-                    try:
-                        if game_time >= 1.5 * self._settings.game_time_limit:
-                            score = 0
-                        else:
-                            score: int | None = self._rpc.call(  # type: ignore
-                                "GetPlayerScore", index + 1
-                            )
-                        alive: bool | None = self._rpc.call("GetPlayerAlive", index + 1)  # type: ignore
-                        # print(self.stats.winner)
-
-                        if score is not None and alive is not None:
-                            assert isinstance(score, int)
-                            assert isinstance(alive, bool)
-                            self.stats.update_player(
-                                index=index, score=score, alive=alive
-                            )
-                        else:
-                            self.stats.update_player(index=index, score=0, alive=False)
-                            if self.debug:
-                                print(
-                                    f"Couldn't get score or alive status for player {name}. "
-                                    "Setting this score to 0"
-                                )
-                    except BaseException as e:
-                        message = (
-                            f"Score and/or alive status for player {name} in game {self.name} "
-                            f"couldn't be retrieved because of {e}. "
-                            "Setting this players' score to 0."
-                        )
-                        self.stats.update_player(index=index, score=0, alive=False)
-                        self.handle_except(e, message)
-                self.status = GameStatus.ENDED
-                self.kill()
+            if is_running and not over_time:
+                return
+            temp: list[int] = self._rpc.call("GetWinningPlayers")  # type: ignore
+            if len(temp) > 1:
+                self._stats.winner = 0
+            else:
+                self._stats.winner = temp[0]
+            # print(self._rpc.call('GetWinningPlayer'))
+            for index, player in self._stats.player_stats.items():
+                await self.update_player(
+                    game_time=game_time, index=index, player=player
+                )
+            self.status = GameStatus.ENDED
+            self.kill()
 
         except BaseException as e:
             message = f"Warning! Game {self.name} could not be updated because of exception {e}."
@@ -580,36 +626,34 @@ class Game:
         self.status = GameStatus.QUIT
 
     def print_stats(self) -> None:
+        if self._settings is None:
+            print("Stats not available - settings not applied")
+            return
         string = (
-            f"Game {self.name} Stats "
-            "\n ------------------------------------------- \n"
-            f"Status: {self.status} \n"
-            f"{str(self.stats)}"
+            f"Game {self.name} Stats\n"
+            " ------------------------------------------- \n"
+            f"Status: {self.status}\n"
+            f"Played @ {self._settings.map.name.lower()} [{self._settings.map_size.name.lower()}]\n"
+            f"{str(self._stats)}"
+            "\n\n"
         )
         print(string)
-        print("\n\n")
 
     @property
-    def statistics(self) -> GameStats | None:
-        return self.stats
+    def is_valid(self) -> bool:
+        return self.status != GameStatus.EXCEPTED and bool(self._stats)
 
     @property
-    def scores(self) -> list[int] | None:
-        if not self.stats:
-            return None
-        return self.stats.scores
+    def scores(self) -> list[int]:
+        return self._stats.scores
 
     @property
-    def overtime(self) -> bool | None:
-        if self._settings and self.stats:
-            return 0 < self._settings.game_time_limit < self.stats.elapsed_game_time
-        return None
+    def elapsed_game_time(self) -> int:
+        return self._stats.elapsed_game_time
 
     @property
-    def winner(self) -> int | None:
-        if not self.stats:
-            return None
-        return self.stats.winner
+    def winner(self) -> int:
+        return self._stats.winner
 
     def __str__(self) -> str:
         return self.name
@@ -651,7 +695,7 @@ class Launcher:
         all_settings = (
             [self.settings] * instances
             if not round_robin
-            else self._apply_round_robin(self.settings)
+            else self.settings.make_round_robin()
         )
         if not round_robin:
             self.games = [Game(f"Game#{i + 1}", self.debug) for i in range(instances)]
@@ -709,25 +753,6 @@ class Launcher:
             for index, game in enumerate(self.games)
         ]
         return await asyncio.gather(*tasks)
-
-    @staticmethod
-    def _apply_round_robin(original_settings: GameSettings) -> list[GameSettings]:
-        settings: list[GameSettings] = []
-        # Suppose the number of names = 5, then we want to go from 0 to (incl.) 3
-        # And for index2, we want to go from 1 to (incl.) 4
-        for index1 in range(len(original_settings.names) - 1):
-            for index2 in range(index1 + 1, len(original_settings.names)):
-                game_settings = original_settings.clone()
-                game_settings.names = [
-                    original_settings.names[index1],
-                    original_settings.names[index2],
-                ]
-                game_settings.civilisations = [
-                    original_settings.civilisations[index1],
-                    original_settings.civilisations[index2],
-                ]
-                settings.append(game_settings)
-        return settings
 
     async def _start_games(self) -> list[asyncio.Task[None]]:
         tasks = [

@@ -8,9 +8,8 @@ from typing import Sequence
 from elosports.elo import Elo
 
 import settings
-
 from src.functions import crossover
-from src.game_launcher import Game, GameSettings, GameStatus, Launcher
+from src.game_launcher import Game, GameSettings, Launcher
 from src.models import AI
 
 AI_NAMES = ["parent", "b", "c", "d", "e", "f", "g", "h"]
@@ -58,9 +57,7 @@ def create_seeds(threshold: int) -> AI:
             settings=game_settings,
         )
         master_score_list = [
-            game.stats.scores if game.stats else []
-            for game in launcher.launch_games(instances=1)
-            if game.status != GameStatus.EXCEPTED
+            game.scores for game in launcher.launch_games(instances=1) if game.is_valid
         ]
 
         score_list = [0] * len(AI_NAMES)
@@ -168,9 +165,9 @@ def run_ffa(
         master_score_list = [[0] * len(AI_NAMES)]
         master_score_list.extend(
             [
-                game.stats.scores if game.stats else []
+                game.scores
                 for game in launcher.launch_games(instances=5)
-                if game.status != GameStatus.EXCEPTED
+                if game.is_valid
             ]
         )
         score_list = [0] * len(AI_NAMES)
@@ -331,9 +328,9 @@ def run_ffa_four(
         master_score_list = [[0] * len(AI_NAMES)]
         master_score_list.extend(
             [
-                game.stats.scores if game.stats else []
+                game.scores
                 for game in launcher.launch_games(instances=5)
-                if game.status != GameStatus.EXCEPTED
+                if game.is_valid
             ]
         )
         score_list = [0] * len(AI_NAMES)
@@ -447,8 +444,7 @@ def run_vs(
             settings=game_settings,
         )
         games = launcher.launch_games(instances=7, round_robin=False)
-        games = [game for game in games if game.status != GameStatus.EXCEPTED]
-        master_score_list = [game.stats.scores for game in games if game.stats]
+        master_score_list = [game.scores for game in games if game.is_valid]
         real_wins = 0
 
         for scores in master_score_list:
@@ -536,15 +532,13 @@ def run_vs_other(
             master_score_list: list[list[int]] = []
 
             games = launcher.launch_games(instances=7, round_robin=False)
-            games = [game for game in games if game.status != GameStatus.EXCEPTED]
+            games = [game for game in games if game.is_valid]
 
             for game in games:
-                if not game.stats:
-                    continue
-                if game.stats.winner == 1:
+                if game.winner == 1:
                     wins += 1
-                master_score_list.append(game.stats.scores)
-                if game.stats.elapsed_game_time < 100:
+                master_score_list.append(game.scores)
+                if game.elapsed_game_time < 100:
                     nest_break = True
 
             # for x in range(len(master_score_list)):
@@ -639,18 +633,16 @@ def run_vs_self(
 
         for i in range(robustness):
             games = launcher.launch_games(instances=7, round_robin=False)
-            games = [game for game in games if game.status != GameStatus.EXCEPTED]
+            games = [game for game in games if game.is_valid]
 
             master_score_list: list[list[int]] = []
             times: list[int] = []
 
             for game in games:
-                if not game.stats:
-                    continue
-                if game.stats.winner == 1:
+                if game.winner == 1:
                     real_wins += 1
-                master_score_list.append(game.stats.scores)
-                times.append(game.stats.elapsed_game_time)
+                master_score_list.append(game.scores)
+                times.append(game.elapsed_game_time)
                 # except:
                 #    pass
                 #    print("fail")
@@ -749,16 +741,14 @@ def run_robin(
             # master_score_list = [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]]
             # [p,b],[p,c],[p,d],[b,c],[b,d][c,d]
             games = launcher.launch_games(round_robin=True)
-            games = [game for game in games if game.status != GameStatus.EXCEPTED]
+            games = [game for game in games if game.is_valid]
             master_score_list: list[list[int]] = []
             times: list[int] = []
             skip = False
 
             for game in games:
-                if not game.stats:
-                    continue
-                master_score_list.append(game.stats.scores)
-                times.append(game.stats.elapsed_game_time)
+                master_score_list.append(game.scores)
+                times.append(game.elapsed_game_time)
 
             if len(master_score_list) == 6:
                 parent_temp_score, b_temp_score = extract_round_robin(
@@ -900,9 +890,7 @@ def benchmarker(ai1: str, ai2: str, rounds: int, civs: list[str]) -> int:
         )
 
         games = launcher.launch_games(instances=7, round_robin=False)
-        games = [
-            game for game in games if game.status != GameStatus.EXCEPTED and game.stats
-        ]
+        games = [game for game in games if game.is_valid]
 
         master_score_list: list[list[int]] = []
         times: list[int] = []
@@ -910,13 +898,12 @@ def benchmarker(ai1: str, ai2: str, rounds: int, civs: list[str]) -> int:
         local_wins = 0
 
         for game in games:
-            assert game.stats
-            time = game.stats.elapsed_game_time
-            score = game.stats.scores
+            time = game.elapsed_game_time
+            score = game.scores
             times.append(time)
             master_score_list.append(score)
 
-            if game.stats.winner == 1:
+            if game.winner == 1:
                 ai1_wins += 1
                 local_wins += 1
                 stats_dict[ai1][0].append("win")
@@ -926,7 +913,7 @@ def benchmarker(ai1: str, ai2: str, rounds: int, civs: list[str]) -> int:
                 stats_dict[ai2][1].append(time)
                 stats_dict[ai2][2].append(score[0])
 
-            elif game.stats.winner == 2:
+            elif game.winner == 2:
                 ai2_wins += 1
                 stats_dict[ai1][0].append("loss")
                 stats_dict[ai1][1].append(time)
@@ -935,7 +922,7 @@ def benchmarker(ai1: str, ai2: str, rounds: int, civs: list[str]) -> int:
                 stats_dict[ai2][1].append(time)
                 stats_dict[ai2][2].append(score[0])
 
-            elif game.stats.winner == 0:
+            elif game.winner == 0:
                 stats_dict[ai1][0].append("draw")
                 stats_dict[ai1][1].append(time)
                 stats_dict[ai1][2].append(score[0])
@@ -1023,23 +1010,18 @@ def group_train(
             )
 
             games = launcher.launch_games(instances=7, round_robin=False)
-            games = [
-                game
-                for game in games
-                if game.status != GameStatus.EXCEPTED and game.stats
-            ]
+            games = [game for game in games if game.is_valid]
 
             master_score_list: list[list[int]] = []
             times: list[int] = []
             string += group_list_local[i] + " : "
 
             for game in games:
-                assert game.stats
-                if game.stats.winner == 1:
+                if game.winner == 1:
                     real_wins += 1
                     score_dictionary[group_list_local[i]] += 1
-                master_score_list.append(game.stats.scores)
-                times.append(game.stats.elapsed_game_time)
+                master_score_list.append(game.scores)
+                times.append(game.elapsed_game_time)
 
             string += str(real_wins) + " "
 
@@ -1152,19 +1134,16 @@ def speed_train(trainer: str, default_mutation_chance: float = 0.01):
         )
 
         games = launcher.launch_games(instances=10, round_robin=False)
-        games = [
-            game for game in games if game.status != GameStatus.EXCEPTED and game.stats
-        ]
+        games = [game for game in games if game.is_valid]
 
         real_wins = 0
         b_score = 0
 
         for game in enumerate(games):
             assert isinstance(game, Game)
-            assert game.stats
-            if game.stats.winner == 1:
+            if game.winner == 1:
                 real_wins += 1
-                b_score -= game.stats.elapsed_game_time
+                b_score -= game.elapsed_game_time
 
         if real_wins < 10:
             b_score = -100000000000000000
@@ -1240,27 +1219,21 @@ def run_elo_once(ai: str, elo_dict: dict[str, float], group_list: list[str]) -> 
             )
 
             games = launcher.launch_games(instances=7, round_robin=False)
-            games = [
-                game
-                for game in games
-                if game.status != GameStatus.EXCEPTED
-                if game.stats
-            ]
+            games = [game for game in games if game.is_valid]
 
             master_score_list: list[list[int]] = []
             times: list[int] = []
 
             wins = 0
             for game in games:
-                assert game.stats
-                master_score_list.append(game.stats.scores)
-                times.append(game.stats.elapsed_game_time)
-                if game.stats.winner == 1:
+                master_score_list.append(game.scores)
+                times.append(game.elapsed_game_time)
+                if game.winner == 1:
                     wins += 1
                     elo_league.game_over(
                         winner=ai, loser=group_list[x], winner_home=False
                     )
-                elif game.stats.winner == 2:
+                elif game.winner == 2:
                     elo_league.game_over(
                         winner=group_list[x], loser=ai, winner_home=False
                     )
@@ -1365,27 +1338,24 @@ def get_ai_data(group_list: list[str]) -> None:
         )
 
         games = launcher.launch_games(instances=7, round_robin=False)
-        games = [
-            game for game in games if game.status != GameStatus.EXCEPTED and game.stats
-        ]
+        games = [game for game in games if game.is_valid]
 
         master_score_list: list[list[int]] = []
         times: list[int] = []
 
         for game in games:
-            assert game.stats
-            master_score_list.append(game.stats.scores)
-            times.append(game.stats.elapsed_game_time)
+            master_score_list.append(game.scores)
+            times.append(game.elapsed_game_time)
 
-            if game.stats.elapsed_game_time < 0.9 * game_time:
-                if game.stats.winner == 1:
+            if game.elapsed_game_time < 0.9 * game_time:
+                if game.winner == 1:
                     stats_dict[name_1][0].append("win")
-                    stats_dict[name_1][1].append(game.stats.elapsed_game_time)
-                    stats_dict[name_1][2].append(game.stats.scores)
+                    stats_dict[name_1][1].append(game.elapsed_game_time)
+                    stats_dict[name_1][2].append(game.scores)
                     stats_dict[name_1][3].append(name_2)
                     stats_dict[name_2][0].append("loss")
-                    stats_dict[name_2][1].append(game.stats.elapsed_game_time)
-                    stats_dict[name_2][2].append(game.stats.scores)
+                    stats_dict[name_2][1].append(game.elapsed_game_time)
+                    stats_dict[name_2][2].append(game.scores)
                     stats_dict[name_2][3].append(name_1)
                     elo_league.game_over(
                         winner=name_1,
@@ -1393,14 +1363,14 @@ def get_ai_data(group_list: list[str]) -> None:
                         winner_home=False,
                     )
 
-                elif game.stats.winner == 2:
+                elif game.winner == 2:
                     stats_dict[name_1][0].append("loss")
-                    stats_dict[name_1][1].append(game.stats.elapsed_game_time)
-                    stats_dict[name_1][2].append(game.stats.scores)
+                    stats_dict[name_1][1].append(game.elapsed_game_time)
+                    stats_dict[name_1][2].append(game.scores)
                     stats_dict[name_1][3].append(name_2)
                     stats_dict[name_2][0].append("win")
-                    stats_dict[name_2][1].append(game.stats.elapsed_game_time)
-                    stats_dict[name_2][2].append(game.stats.scores)
+                    stats_dict[name_2][1].append(game.elapsed_game_time)
+                    stats_dict[name_2][2].append(game.scores)
                     stats_dict[name_2][3].append(name_1)
                     elo_league.game_over(
                         winner=name_2,
@@ -1410,12 +1380,12 @@ def get_ai_data(group_list: list[str]) -> None:
 
             else:
                 stats_dict[name_1][0].append("draw")
-                stats_dict[name_1][1].append(game.stats.elapsed_game_time)
-                stats_dict[name_1][2].append(game.stats.scores)
+                stats_dict[name_1][1].append(game.elapsed_game_time)
+                stats_dict[name_1][2].append(game.scores)
                 stats_dict[name_1][3].append(name_2)
                 stats_dict[name_2][0].append("draw")
-                stats_dict[name_2][1].append(game.stats.elapsed_game_time)
-                stats_dict[name_2][2].append(game.stats.scores)
+                stats_dict[name_2][1].append(game.elapsed_game_time)
+                stats_dict[name_2][2].append(game.scores)
                 stats_dict[name_2][3].append(name_1)
 
     print(elo_league.rating)
@@ -1460,42 +1430,37 @@ def get_single_ai_data(
             )
 
             games = launcher.launch_games(instances=7, round_robin=False)
-            games = [
-                game
-                for game in games
-                if game.status != GameStatus.EXCEPTED and game.stats
-            ]
+            games = [game for game in games if game.is_valid]
 
             master_score_list: list[list[int]] = []
             times: list[int] = []
 
             wins = 0
             for game in games:
-                assert game.stats
-                master_score_list.append(game.stats.scores)
-                times.append(game.stats.elapsed_game_time)
-                if game.stats.winner == 1:
+                master_score_list.append(game.scores)
+                times.append(game.elapsed_game_time)
+                if game.winner == 1:
                     wins += 1
 
-                if game.stats.winner == 0:
+                if game.winner == 0:
                     stats_dict[ai][0].append("draw")
-                    stats_dict[ai][1].append(game.stats.elapsed_game_time)
-                    stats_dict[ai][2].append(game.stats.scores[0])
+                    stats_dict[ai][1].append(game.elapsed_game_time)
+                    stats_dict[ai][2].append(game.scores[0])
                     stats_dict[ai][3].append(name)
 
                 else:
-                    if game.stats.winner == 1:
+                    if game.winner == 1:
                         stats_dict[ai][0].append("win")
-                        stats_dict[ai][1].append(game.stats.elapsed_game_time)
-                        stats_dict[ai][2].append(game.stats.scores[0])
+                        stats_dict[ai][1].append(game.elapsed_game_time)
+                        stats_dict[ai][2].append(game.scores[0])
                         stats_dict[ai][3].append(name)
 
                         elo_league.game_over(winner=ai, loser=name, winner_home=False)
 
-                    elif game.stats.winner == 2:
+                    elif game.winner == 2:
                         stats_dict[ai][0].append("loss")
-                        stats_dict[ai][1].append(game.stats.elapsed_game_time)
-                        stats_dict[ai][2].append(game.stats.scores[0])
+                        stats_dict[ai][1].append(game.elapsed_game_time)
+                        stats_dict[ai][2].append(game.scores[0])
                         stats_dict[ai][3].append(name)
 
                         elo_league.game_over(winner=name, loser=ai, winner_home=False)
@@ -1535,47 +1500,44 @@ def benchmarker_slow(ai1: str, ai2: str, civs: list[str]) -> int:
     )
 
     games = launcher.launch_games(instances=40, round_robin=False)
-    games = [
-        game for game in games if game.status != GameStatus.EXCEPTED and game.stats
-    ]
+    games = [game for game in games if game.is_valid]
 
     for game in games:
-        assert game.stats
-        time += game.stats.elapsed_game_time
+        time += game.elapsed_game_time
 
         if (
-            game.stats.scores[0] > game.stats.scores[1]
-            and game.stats.elapsed_game_time / settings.game_time < 0.9
+            game.scores[0] > game.scores[1]
+            and game.elapsed_game_time / settings.game_time < 0.9
         ):
             ai1_wins += 1
             stats_dict[ai1][0].append("win")
-            stats_dict[ai1][1].append(game.stats.elapsed_game_time)
-            stats_dict[ai1][2].append(game.stats.scores[0])
+            stats_dict[ai1][1].append(game.elapsed_game_time)
+            stats_dict[ai1][2].append(game.scores[0])
             stats_dict[ai2][0].append("loss")
-            stats_dict[ai2][1].append(game.stats.elapsed_game_time)
-            stats_dict[ai2][2].append(game.stats.scores[1])
+            stats_dict[ai2][1].append(game.elapsed_game_time)
+            stats_dict[ai2][2].append(game.scores[1])
 
         elif (
-            game.stats.scores[0] < game.stats.scores[1]
-            and game.stats.elapsed_game_time / settings.game_time < 0.9
+            game.scores[0] < game.scores[1]
+            and game.elapsed_game_time / settings.game_time < 0.9
         ):
             ai2_wins += 1
             stats_dict[ai1][0].append("loss")
-            stats_dict[ai1][1].append(game.stats.elapsed_game_time)
-            stats_dict[ai1][2].append(game.stats.scores[0])
+            stats_dict[ai1][1].append(game.elapsed_game_time)
+            stats_dict[ai1][2].append(game.scores[0])
             stats_dict[ai2][0].append("win")
-            stats_dict[ai2][1].append(game.stats.elapsed_game_time)
-            stats_dict[ai2][2].append(game.stats.scores[1])
+            stats_dict[ai2][1].append(game.elapsed_game_time)
+            stats_dict[ai2][2].append(game.scores[1])
 
-        elif game.stats.scores == [0, 0]:
+        elif game.scores == [0, 0]:
             failed_games += 1
         else:
             stats_dict[ai1][0].append("draw")
-            stats_dict[ai1][1].append(game.stats.elapsed_game_time)
-            stats_dict[ai1][2].append(game.stats.scores[0])
+            stats_dict[ai1][1].append(game.elapsed_game_time)
+            stats_dict[ai1][2].append(game.scores[0])
             stats_dict[ai2][0].append("draw")
-            stats_dict[ai2][1].append(game.stats.elapsed_game_time)
-            stats_dict[ai2][2].append(game.stats.scores[1])
+            stats_dict[ai2][1].append(game.elapsed_game_time)
+            stats_dict[ai2][2].append(game.scores[1])
             stalemates += 1
 
     print(f"{ai1_wins}/{ai2_wins}/{stalemates}/{failed_games}")
@@ -1642,16 +1604,13 @@ def run_vs_other_slow(
         )
 
         games = launcher.launch_games(instances=instance_count, round_robin=False)
-        games = [
-            game for game in games if game.status != GameStatus.EXCEPTED and game.stats
-        ]
+        games = [game for game in games if game.is_valid]
 
         wins = 0
         draws = 0
         for game in games:
-            assert game.stats
-            if game.stats.elapsed_game_time / game_time < 0.9:
-                if game.stats.scores[0] > game.stats.scores[1]:
+            if game.elapsed_game_time / game_time < 0.9:
+                if game.scores[0] > game.scores[1]:
                     wins += 1
             else:
                 draws += 1
@@ -1663,16 +1622,15 @@ def run_vs_other_slow(
 
         # does nothing but keeping so I don't have to debug
         for game in games:
-            assert game.stats
-            if game.stats.scores[0] > game.stats.scores[1]:
-                multiplier = game_time / game.stats.elapsed_game_time
-                if game.stats.elapsed_game_time / game_time < 0.9:
+            if game.scores[0] > game.scores[1]:
+                multiplier = game_time / game.elapsed_game_time
+                if game.elapsed_game_time / game_time < 0.9:
                     real_wins += 1
                     bonus += 10000000000 + 1000 * multiplier
             else:
                 multiplier = 1
 
-            score_list[0] += game.stats.scores[0]
+            score_list[0] += game.scores[0]
 
         # score_list[0] += bonus
         score_list[0] = wins + draws / 100
@@ -1774,16 +1732,14 @@ def run_vs_self_slow(
         )
 
         games = launcher.launch_games(instances=instance_count, round_robin=False)
-        games = [
-            game for game in games if game.status != GameStatus.EXCEPTED and game.stats
-        ]
+        games = [game for game in games if game.is_valid]
 
         wins = 0
         losses = 0
         draws = 0
 
         for game in games:
-            if game.stats.winner == 1:
+            if game.winner == 1:
                 wins += 1
             else:
                 losses += 1
@@ -1849,17 +1805,14 @@ def basic_benchmarker(ai1: str, ai2: str, rounds: int, civs: list[str]) -> int:
         )
 
         games = launcher.launch_games(instances=7, round_robin=False)
-        games = [
-            game for game in games if game.status != GameStatus.EXCEPTED if game.stats
-        ]
+        games = [game for game in games if game.is_valid]
 
         local_wins = 0
         for game in games:
-            assert game.stats
-            if game.stats.winner == 1:
+            if game.winner == 1:
                 ai1_wins += 1
                 local_wins += 1
-            elif game.stats.winner == 2:
+            elif game.winner == 2:
                 ai2_wins += 1
             else:
                 stalemates += 1
@@ -1914,14 +1867,9 @@ def run_vs_self_slow2(
 
         for i in range(robustness):
             games = launcher.launch_games(instances=30, round_robin=False)
-            games = [
-                game
-                for game in games
-                if game.status != GameStatus.EXCEPTED
-                if game.stats
-            ]
+            games = [game for game in games if game.is_valid]
             for game in games:
-                if game.stats.winner == 1:
+                if game.winner == 1:
                     real_wins += 1
                 # except:
                 #    pass
@@ -2039,16 +1987,13 @@ def run_vs_selfs(
         )
 
         games = launcher.launch_games(instances=7, round_robin=False)
-        games = [
-            game for game in games if game.status != GameStatus.EXCEPTED and game.stats
-        ]
+        games = [game for game in games if game.is_valid]
 
         sets_run += 1
 
         test_wins = 0
         for game in games:
-            assert game.stats
-            if game.stats.winner == 1:
+            if game.winner == 1:
                 test_wins += 1
 
         if test_wins < 6:
@@ -2070,19 +2015,14 @@ def run_vs_selfs(
                 )
 
                 games = launcher.launch_games(instances=7, round_robin=False)
-                games = [
-                    game
-                    for game in games
-                    if game.status != GameStatus.EXCEPTED and game.stats
-                ]
+                games = [game for game in games if game.is_valid]
 
                 sets_run += 1
                 for game in games:
-                    assert game.stats
-                    if game.stats.winner == 1:
+                    if game.winner == 1:
                         real_wins += 1
 
-                    if game.stats.elapsed_game_time < 100:
+                    if game.elapsed_game_time < 100:
                         # crashed
                         break
 
