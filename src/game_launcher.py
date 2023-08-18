@@ -7,7 +7,7 @@ import os
 import subprocess
 import time
 from ctypes import windll
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self, Sequence
 
 import msgpackrpc
@@ -227,9 +227,8 @@ class GameSettings:
         game_time_limit: int = 0,
         speed: bool = True,
     ) -> None:
-        names = names or []
-        civilisations = list(civilisations) if civilisations else []
         self.names = names
+        civilisations = list(civilisations) if civilisations else []
         self.civilisations = self._correct_civilizations(civilisations, default="huns")
         self.map = Map(map_id)
         self.map_size = MapSize(map_size)
@@ -257,15 +256,13 @@ class GameSettings:
         default: str = Civilisation.default().name.lower(),
     ) -> list[Civilisation]:
         civs = [Civilisation(civ) for civ in civilizations]
-        if len(civilizations) < len(self.names):
+        if len(civs) < len(self.names):
             print(
                 "The number of civilisations provided is less than the number of names."
                 "For every player that does not have a civilisation provided for it, "
                 f"it will default to {default}."
             )
-            civs.extend(
-                [Civilisation.default()] * (len(self.names) - len(civilizations))
-            )
+            civs.extend([Civilisation.default()] * (len(self.names) - len(civs)))
         return civs
 
     def clone(self) -> Self:
@@ -276,25 +273,31 @@ class GameSettings:
 class PlayerStats:
     index: int
     name: str
-    alive: bool = True
-    score: int = 0
+    _alive: bool = field(default=True, init=False)
+    _score: int = field(default=0, init=False)
 
     def update(self, score: int, alive: bool) -> None:
-        self.score = score
-        self.alive = alive
+        self._score = score
+        self._alive = alive
+
+    @property
+    def score(self) -> int:
+        return self._score
+
+    @property
+    def alive(self) -> bool:
+        return self._alive
 
 
+@dataclass
 class GameStats:
-    elapsed_game_time: int
-    player_stats: dict[int, PlayerStats]
     _settings: GameSettings
-    winner: int = 0
+    player_stats: dict[int, PlayerStats] = field(default_factory=dict)
+    elapsed_game_time: int = field(default=0, init=False)
+    winner: int = field(default=0, init=False)
 
-    def __init__(self, settings: GameSettings) -> None:
-        self.elapsed_game_time = 0
-        self._settings = settings
-        self.player_stats = {}
-        for index, name in enumerate(settings.names):
+    def __post_init__(self) -> None:
+        for index, name in enumerate(self._settings.names):
             self.player_stats[index] = PlayerStats(index=index, name=name)
 
     def update_player(self, index: int, score: int, alive: bool) -> None:
@@ -310,29 +313,30 @@ class GameStats:
 
     def __str__(self) -> str:
         string = (
-            f"Played @ {self._settings.map.name}"
-            f"[{self._settings.map_size.name}] \n"
-            f"Elapsed Game Time: {self.elapsed_game_time} \n\n"
+            f"Played @ {self._settings.map.name} "
+            f"[{self._settings.map_size.name}]\n"
+            f"Elapsed Game Time: {self.elapsed_game_time}\n\n"
         )
         for i, ps in self.player_stats.items():
             string += (
-                f"Player {i} '{ps.name}' ({self._settings.civs[i].name}) \n"
-                f"\t\t Score: {ps.score} \n"
-                f"\t\t Alive: {ps.alive} \n"
+                f"Player {i} '{ps.name}' ({self._settings.civs[i].name})\n"
+                f"\t\t Score: {ps.score}\n"
+                f"\t\t Alive: {ps.alive}\n"
             )
         return string
 
 
 class Game:
-    name: str = "GameWithoutName"
-    _settings: GameSettings | None = None
-    status: GameStatus = GameStatus.NONE
-    _process: subprocess.Popen[bytes] | None = None
-    _rpc: msgpackrpc.Client | None = None
+    name: str
+    _settings: GameSettings
+    status: GameStatus
+    _process: subprocess.Popen[bytes] | None
+    _rpc: msgpackrpc.Client | None
     _port: int = 0
-    stats: GameStats | None = None
+    stats: GameStats
+    debug: bool
 
-    def __init__(self, name: str, debug: bool = False) -> None:
+    def __init__(self, name: str = "GameWithoutName", debug: bool = False) -> None:
         self.name = name
         self.status = GameStatus.INIT
         self.debug = debug
@@ -410,7 +414,7 @@ class Game:
         self.status = GameStatus.CONNECTED
         return self._rpc
 
-    async def apply_settings(self, settings: GameSettings):
+    async def apply_settings(self, settings: GameSettings) -> None:
         """
         Apply game settings to this game.
 
@@ -423,19 +427,13 @@ class Game:
                 "It might not be a good time to setup the game..."
             )
 
-        self._settings = settings
         try:
+            self._settings = settings
             self._rpc.call_async("ResetGameSettings")  # type: ignore
             self._rpc.call_async("SetGameMapType", settings.map_id)  # type: ignore
-            self._rpc.call_async(  # type: ignore
-                "SetGameDifficulty", settings.difficulty
-            )  # Set to hard
-            self._rpc.call_async(  # type: ignore
-                "SetGameRevealMap", settings.reveal_map
-            )  # Set to standard exploration
-            self._rpc.call_async(  # type: ignore
-                "SetGameMapSize", settings.map_size
-            )  # Set to medium map size
+            self._rpc.call_async("SetGameDifficulty", settings.difficulty)  # type: ignore
+            self._rpc.call_async("SetGameRevealMap", settings.reveal_map)  # type: ignore
+            self._rpc.call_async("SetGameMapSize", settings.map_size)  # type: ignore
             self._rpc.call_async(  # type: ignore
                 "SetGameVictoryType", settings.victory_type, settings.victory_value
             )
@@ -455,10 +453,10 @@ class Game:
                 "\nThe rpc client will be closed and the game process will be terminated."
             )
             self.handle_except(e, message)
-        self.stats = GameStats(settings=settings)
+        self.stats = GameStats(settings)
         self.status = GameStatus.SETUP
 
-    async def start_game(self):
+    async def start_game(self) -> None:
         """
         Start the game.
         """
@@ -482,7 +480,7 @@ class Game:
             self.handle_except(e, message)
         self.status = GameStatus.RUNNING
 
-    async def update(self):
+    async def update(self) -> None:
         """
         Check whether the game is still running and extract the stats if it isn't.
         """
@@ -552,8 +550,7 @@ class Game:
 
     def handle_except(self, exception: BaseException, extra_message: str = "") -> None:
         """
-        Handle exceptions that occur during a running game by killing the process and disconnecting the RPC client.
-        Also, print debug statements if relevant.
+        Kill the process and disconnect the RPC client; print debug statements if relevant.
 
         :param exception: The exception that occurred.
         :param extra_message: An optional extra message to print as well.
@@ -682,34 +679,35 @@ class Launcher:
 
         return self.games
 
-    async def _launch_games(self) -> list[subprocess.Popen[bytes]]:
-        tasks: list[asyncio.Task[subprocess.Popen[bytes]]] = []
-        multiple = self.number_of_games > 1
-        for index, game in enumerate(self.games):
-            task = asyncio.create_task(
+    async def _launch_games(self) -> list[asyncio.Task[subprocess.Popen[bytes]]]:
+        tasks = [
+            asyncio.create_task(
                 coro=game.launch_process(
                     executable_path=self.executable_path,
                     dll_path=self.dll_path,
-                    multiple=multiple,
+                    multiple=self.number_of_games > 1,
                     port=self.base_port + index,
                 ),
                 name=f"GameLaunch{index}",
             )
-            tasks.append(task)
+            for index, game in enumerate(self.games)
+        ]
         return await asyncio.gather(*tasks)
 
     def _setup_rpc_clients(self) -> None:
         for game in self.games:
             game.setup_rpc_client()
 
-    async def _apply_games_settings(self, settings: list[GameSettings]):
-        tasks: list[asyncio.Task[None]] = []
-        for index, game in enumerate(self.games):
-            task = asyncio.create_task(
+    async def _apply_games_settings(
+        self, settings: list[GameSettings]
+    ) -> list[asyncio.Task[None]]:
+        tasks = [
+            asyncio.create_task(
                 coro=game.apply_settings(settings[index]),
                 name=f"ApplyGameSettings-{game.name}",
             )
-            tasks.append(task)
+            for index, game in enumerate(self.games)
+        ]
         return await asyncio.gather(*tasks)
 
     @staticmethod
@@ -731,20 +729,18 @@ class Launcher:
                 settings.append(game_settings)
         return settings
 
-    async def _start_games(self):
-        tasks: list[asyncio.Task[None]] = []
-        for game in self.games:
-            task = asyncio.create_task(
+    async def _start_games(self) -> list[asyncio.Task[None]]:
+        tasks = [
+            asyncio.create_task(
                 coro=game.start_game(), name=f"StartingGame-{game.name}"
             )
-            tasks.append(task)
+            for game in self.games
+        ]
         return await asyncio.gather(*tasks)
 
-    async def update_games(self):
-        tasks: list[asyncio.Task[None]] = []
-        for game in self.running_games:
-            task = asyncio.create_task(
-                coro=game.update(), name=f"UpdateGame-{game.name}"
-            )
-            tasks.append(task)
+    async def update_games(self) -> None:
+        tasks = [
+            asyncio.create_task(coro=game.update(), name=f"UpdateGame-{game.name}")
+            for game in self.running_games
+        ]
         await asyncio.gather(*tasks)
