@@ -3,16 +3,16 @@ import itertools
 import random
 import time
 from itertools import zip_longest
-from typing import Sequence
+from typing import Any, Sequence
 
 from elosports.elo import Elo
 
 import settings
 from src.functions import crossover
-from src.game_launcher import Game, GameSettings, Launcher
+from src.game_launcher import Civilisation, Game, GameSettings, Launcher, MapSize
 from src.models import AI
 
-AI_NAMES = ["parent", "b", "c", "d", "e", "f", "g", "h"]
+AI_NAMES = ("parent", "b", "c", "d", "e", "f", "g", "h")
 
 EXECUTABLE_PATH = "C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe"
 
@@ -38,10 +38,10 @@ def extract_round_robin(score: Sequence[int], game_time: int) -> tuple[int, int]
     return p1, p2
 
 
-def create_seeds(threshold: int) -> AI:
+def create_seeds(threshold: int, civ: str = settings.civ) -> AI:
     while True:
         game_settings = GameSettings(
-            civilisations=[settings.civ] * 4,
+            civilisations=[civ] * 4,
             names=["parent", "parent"],
             game_time_limit=settings.game_time,
             map_id="arabia",
@@ -53,7 +53,7 @@ def create_seeds(threshold: int) -> AI:
         ai_parent.export("parent")
 
         launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
+            executable_path=EXECUTABLE_PATH,
             settings=game_settings,
         )
         master_score_list = [
@@ -71,6 +71,7 @@ def create_seeds(threshold: int) -> AI:
                 return ai_parent
 
 
+# unused function
 def extract_ffa(master_score: list[list[int]]) -> tuple[int, int, int, int]:
     a, b, c, d = 0, 0, 0, 0
 
@@ -103,313 +104,133 @@ def extract_ffa(master_score: list[list[int]]) -> tuple[int, int, int, int]:
 def run_ffa(
     threshold: int,
     load: bool,
-    default_mutation_chance: float = settings.default_mutation_chance,
+    base_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
+    fails_before_reset: int = settings.fails_before_reset,
+    ai_names: Sequence[str] = AI_NAMES,
+    game_time_limit: int = 5000,
+    **kwargs: Any,
 ) -> None:
-    game_time = 5000
-    score_list = [[0] * len(AI_NAMES)]
-
     if load:
         ai_parent = AI.from_file("best")
     else:
         ai_parent = create_seeds(threshold)
 
-    game_settings = GameSettings(
-        civilisations=[settings.civ] * 8,
-        names=AI_NAMES,
-        game_time_limit=game_time,
-        map_id="arabia",
-    )
-
     second_place = copy.deepcopy(ai_parent)
     generation = 1
     fails = 0
-    mutation_chance = default_mutation_chance
+    mutation_chance = base_mutation_chance
+    game_settings = GameSettings(
+        names=list(ai_names),
+        civilisations=[Civilisation.default()] * len(ai_names),
+        game_time_limit=game_time_limit,
+        **kwargs,
+    )
 
     while True:
         generation += 1
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        b = crossed.mutate(mutation_chance)
-
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        c = crossed.mutate(mutation_chance)
-
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        d = crossed.mutate(mutation_chance)
-
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        e = crossed.mutate(mutation_chance)
-
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        f = crossed.mutate(mutation_chance)
-
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        g = crossed.mutate(mutation_chance)
-
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        h = crossed.mutate(mutation_chance)
-
-        ai_parent.export("parent")
-        b.export("b")
-        c.export("c")
-        d.export("d")
-        e.export("e")
-        f.export("f")
-        g.export("g")
-        h.export("h")
+        ais = [ai_parent]
+        for i, name in enumerate(ai_names):
+            if i > 0:
+                ais.append(
+                    crossover(ai_parent, second_place, mutation_chance).mutate(
+                        mutation_chance
+                    )
+                )
+            ais[i].export(name)
 
         # reads score
         launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
+            executable_path=EXECUTABLE_PATH,
             settings=game_settings,
         )
-        master_score_list = [[0] * len(AI_NAMES)]
-        master_score_list.extend(
-            [
-                game.scores
-                for game in launcher.launch_games(instances=5)
-                if game.is_valid
-            ]
-        )
-        score_list = [0] * len(AI_NAMES)
+        master_score_list = [
+            game.scores for game in launcher.launch_games(instances=5) if game.is_valid
+        ]
 
-        for scores in master_score_list:
-            score_list = [sum(x) for x in zip_longest(score_list, scores, fillvalue=0)]
+        score_list = [sum(x) for x in zip(*master_score_list)]
 
-        if not score_list or set(score_list) == {0} or len(master_score_list) < 3:
+        if len(master_score_list) < 3 or set(score_list) == {0}:
             if generation == 1:
                 generation -= 1
             continue
-        while [0] * len(AI_NAMES) in master_score_list:
-            master_score_list.remove([0] * len(AI_NAMES))
 
-        (
-            parent_score,
-            b_score,
-            c_score,
-            d_score,
-            e_score,
-            f_score,
-            g_score,
-            h_score,
-        ) = score_list
-        score_list = sorted(score_list, reverse=True)
+        sorted_score_list = sorted(score_list, reverse=True)
 
         # checks number of rounds with no improvement and sets annealing
-        if parent_score == max(score_list):
+        if score_list[0] == sorted_score_list[0]:
             fails += 1
             if fails % 2 == 0:
                 mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
+                    base_mutation_chance + fails / (1000 * anneal_amount),
                     0.2,
                 )
             else:
                 mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
+                    base_mutation_chance - fails / (1000 * anneal_amount),
                     0.001,
                 )
         else:
             fails = 0
-            mutation_chance = default_mutation_chance
+            mutation_chance = base_mutation_chance
 
         failed = False
-        if parent_score == max(score_list):
-            failed = True
-            winner = copy.deepcopy(ai_parent)
-            second_place = copy.deepcopy(ai_parent)
-            print(f"parent won by score: {parent_score}")
-        elif b_score == max(score_list):
-            winner = copy.deepcopy(b)
-            print(f"b won by score: {b_score}")
-        elif c_score == max(score_list):
-            winner = copy.deepcopy(c)
-            print(f"c won by score: {b_score}")
-        elif d_score == max(score_list):
-            winner = copy.deepcopy(d)
-            print(f"d won by score: {b_score}")
-        elif e_score == max(score_list):
-            winner = copy.deepcopy(e)
-            print(f"e won by score: {b_score}")
-        elif f_score == max(score_list):
-            winner = copy.deepcopy(f)
-            print(f"f won by score: {b_score}")
-        elif g_score == max(score_list):
-            winner = copy.deepcopy(g)
-            print(f"g won by score: {b_score}")
-        elif h_score == max(score_list):
-            winner = copy.deepcopy(h)
-            print(f"h won by score: {b_score}")
-        else:
-            print("Failed!!!")
+        winner = None
+
+        for i, score in enumerate(score_list):
+            if score == sorted_score_list[0]:
+                winner = copy.deepcopy(ais[i])
+                if i == 0:
+                    failed = True
+                    second_place = copy.deepcopy(ais[0])
+                print(f"{ai_names[i]} won by score: {score}")
+                break
+        if not winner:
+            print("Failed!")
             break
 
-        # checks if second best for crossover, also gross and needs to be replaced later
         if not failed:
-            if parent_score == score_list[1]:
-                second_place = copy.deepcopy(ai_parent)
-            elif b_score == score_list[1]:
-                second_place = copy.deepcopy(b)
-            elif c_score == score_list[1]:
-                second_place = copy.deepcopy(c)
-            elif d_score == score_list[1]:
-                second_place = copy.deepcopy(d)
-            elif e_score == score_list[1]:
-                second_place = copy.deepcopy(e)
-            elif f_score == score_list[1]:
-                second_place = copy.deepcopy(f)
-            elif g_score == score_list[1]:
-                second_place = copy.deepcopy(g)
-            else:  # h_score == score_list[1]:
-                second_place = copy.deepcopy(h)
+            for i, score in enumerate(score_list):
+                if score == sorted_score_list[1]:
+                    second_place = copy.deepcopy(ais[i])
+                    break
 
         ai_parent = copy.deepcopy(winner)
         winner.export("best")
         winner.save_to_file("best")
 
-        # restarts after 10 fails
-        if fails > settings.fails_before_reset:
+        # restarts after a certain number of fails
+        if fails > fails_before_reset:
             print("fail threshold exceeded, resetting...")
             winner.export(str(max(score_list)))
             winner.save_to_file(str(max(score_list)))
             fails = 0
             generation = 0
-            ai_parent = AI.generate()
+            ai_parent = AI.generate()  # ? create_seeds(threshold)
 
 
 def run_ffa_four(
     threshold: int,
     load: bool,
-    default_mutation_chance: float = settings.default_mutation_chance,
+    base_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
+    fails_before_reset: int = settings.fails_before_reset,
+    ai_names: Sequence[str] = AI_NAMES[:4],
+    game_time_limit: int = 5000,
+    map_size: MapSize = MapSize.TINY,
+    **kwargs: Any,
 ) -> None:
-    game_time = 5000
-    score_list = [[0] * len(AI_NAMES)]
-
-    if load:
-        ai_parent = AI.from_file("best")
-    else:
-        ai_parent = create_seeds(threshold)
-
-    # temporary code
-    # ai_parent = mutate_ai(copy.deepcopy(ai_parent))
-
-    ai_names = ["parent", "b", "c", "d"]
-
-    game_settings = GameSettings(
-        civilisations=["huns"] * 4,
-        names=ai_names,
-        game_time_limit=game_time,
-        map_id="arabia",
-        map_size="tiny",
+    return run_ffa(
+        threshold=threshold,
+        load=load,
+        base_mutation_chance=base_mutation_chance,
+        anneal_amount=anneal_amount,
+        fails_before_reset=fails_before_reset,
+        ai_names=ai_names,
+        game_time_limit=game_time_limit,
+        map_size=map_size,
+        **kwargs,
     )
-
-    second_place = copy.deepcopy(ai_parent)
-    mutation_chance = default_mutation_chance
-    generation = 1
-    fails = 0
-
-    while True:
-        generation += 1
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        b = crossed.mutate(mutation_chance)
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        c = crossed.mutate(mutation_chance)
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        d = crossed.mutate(mutation_chance)
-
-        ai_parent.export("parent")
-        b.export("b")
-        c.export("c")
-        d.export("d")
-
-        # reads score
-        launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
-            settings=game_settings,
-        )
-        master_score_list = [[0] * len(AI_NAMES)]
-        master_score_list.extend(
-            [
-                game.scores
-                for game in launcher.launch_games(instances=5)
-                if game.is_valid
-            ]
-        )
-        score_list = [0] * len(AI_NAMES)
-
-        for scores in master_score_list:
-            score_list = [sum(x) for x in zip_longest(score_list, scores, fillvalue=0)]
-
-        if not score_list or set(score_list) == {0} or len(master_score_list) < 3:
-            if generation == 1:
-                generation -= 1
-            continue
-
-        # parent_score, b_score, c_score, d_score = extract_ffa(master_score_list)
-
-        # score_list = [parent_score, b_score, c_score, d_score]
-
-        parent_score, b_score, c_score, d_score = score_list
-        score_list = sorted(score_list, reverse=True)
-
-        # checks number of rounds with no improvement and sets annealing
-        if parent_score == max(score_list):
-            fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
-                    0.001,
-                )
-        else:
-            fails = 0
-            mutation_chance = default_mutation_chance
-
-        failed = False
-
-        if parent_score == max(score_list):
-            failed = True
-            winner = copy.deepcopy(ai_parent)
-            second_place = copy.deepcopy(ai_parent)
-            print(f"parent won by score: {parent_score}")
-        elif b_score == max(score_list):
-            winner = copy.deepcopy(b)
-            print(f"b won by score: {b_score}")
-        elif c_score == max(score_list):
-            winner = copy.deepcopy(c)
-            print(f"c won by score: {b_score}")
-        elif d_score == max(score_list):
-            winner = copy.deepcopy(d)
-            print(f"d won by score: {b_score}")
-        else:
-            print("Failed!!!")
-            break
-
-        # checks if second best for crossover, also gross and needs to be replaced later
-        if not failed:
-            if parent_score == score_list[1]:
-                second_place = copy.deepcopy(ai_parent)
-            elif b_score == score_list[1]:
-                second_place = copy.deepcopy(b)
-            elif c_score == score_list[1]:
-                second_place = copy.deepcopy(c)
-            elif d_score == score_list[1]:
-                second_place = copy.deepcopy(d)
-
-        ai_parent = copy.deepcopy(winner)
-        winner.export("best")
-        winner.save_to_file("best")
-
-        # restarts after 10 fails
-        if fails > settings.fails_before_reset:
-            print("fail threshold exceeded, resetting...")
-            winner.export(str(max(score_list)))
-            winner.save_to_file(str(max(score_list)))
-            fails = 0
-            generation = 0
-            ai_parent = create_seeds(threshold)
 
 
 def run_vs(
