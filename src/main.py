@@ -233,10 +233,16 @@ def run_ffa_four(
     )
 
 
+# unused function
 def run_vs(
     threshold: int,
     load: bool,
-    default_mutation_chance: float = settings.default_mutation_chance,
+    ai_names: Sequence[str] = AI_NAMES[:2],
+    base_mutation_chance: float = settings.default_mutation_chance,
+    game_time_limit: int = settings.game_time,
+    map_size: MapSize = MapSize.TINY,
+    instances: int = 7,
+    **kwargs: Any,
 ) -> None:
     if load:
         ai_parent = AI.from_file("best")
@@ -244,53 +250,49 @@ def run_vs(
         ai_parent = create_seeds(threshold)
 
     fails = 0
-    generation = 0
     winner = copy.deepcopy(ai_parent)
-    mutation_chance = default_mutation_chance
+    mutation_chance = base_mutation_chance
 
     game_settings = GameSettings(
-        civilisations=["huns"] * 2,
-        names=["parent", "b"],
-        map_size="tiny",
-        game_time_limit=settings.game_time,
+        civilisations=[Civilisation.default()] * len(ai_names),
+        names=list(ai_names),
+        map_size=map_size,
+        game_time_limit=game_time_limit,
+        **kwargs,
     )
 
     while True:
-        generation += 1
-        b = copy.deepcopy(ai_parent).mutate(mutation_chance)
-        ai_parent.export("parent")
-        b.export("b")
+        ais = [ai_parent]
+        ais.append(copy.deepcopy(ai_parent).mutate(mutation_chance))
+        for i, name in enumerate(ai_names):
+            ais[i].export(name)
         launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
+            executable_path=EXECUTABLE_PATH,
             settings=game_settings,
         )
-        games = launcher.launch_games(instances=7, round_robin=False)
-        master_score_list = [game.scores for game in games if game.is_valid]
-        real_wins = 0
-
-        for scores in master_score_list:
-            # try:
-            if scores[1] > scores[0]:
-                real_wins += 1
+        games = launcher.launch_games(instances=instances)
+        real_wins = sum(
+            game.scores[1] > game.scores[0] for game in games if game.is_valid
+        )
 
         # checks number of rounds with no improvement and sets annealing
         if real_wins < 4:
             fails += 1
             if fails % 2 == 0:
                 mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
+                    base_mutation_chance + fails / (1000 * settings.anneal_amount),
                     0.2,
                 )
             else:
                 mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
+                    base_mutation_chance - fails / (1000 * settings.anneal_amount),
                     0.001,
                 )
         else:
             print("new best")
-            winner = copy.deepcopy(b)
+            winner = copy.deepcopy(ais[1])
             fails = 0
-            mutation_chance = default_mutation_chance
+            mutation_chance = base_mutation_chance
 
         ai_parent = copy.deepcopy(winner)
         winner.export("best")
