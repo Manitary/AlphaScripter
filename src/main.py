@@ -239,7 +239,6 @@ def run_vs(
     load: bool,
     ai_names: Sequence[str] = AI_NAMES[:2],
     base_mutation_chance: float = settings.default_mutation_chance,
-    game_time_limit: int = settings.game_time,
     map_size: MapSize = MapSize.TINY,
     instances: int = 7,
     **kwargs: Any,
@@ -257,7 +256,6 @@ def run_vs(
         civilisations=[Civilisation.default()] * len(ai_names),
         names=list(ai_names),
         map_size=map_size,
-        game_time_limit=game_time_limit,
         **kwargs,
     )
 
@@ -307,7 +305,6 @@ def run_vs_other(
     robustness: int,
     infinite: bool,
     base_mutation_chance: float = settings.default_mutation_chance,
-    game_time_limit: int = settings.game_time,
     map_size: MapSize = MapSize.TINY,
     instances: int = 7,
 ) -> None:
@@ -322,7 +319,6 @@ def run_vs_other(
         civilisations=civs,
         names=["b", trainer],
         map_size=map_size,
-        game_time_limit=game_time_limit,
     )
 
     mutation_chance = base_mutation_chance
@@ -397,7 +393,6 @@ def run_vs_self(
     robustness: int,
     infinite: bool,
     base_mutation_chance: float = settings.default_mutation_chance,
-    game_time_limit: int = settings.game_time,
     map_size: MapSize = MapSize.TINY,
     instances: int = 7,
 ) -> None:
@@ -410,7 +405,6 @@ def run_vs_self(
         civilisations=[Civilisation.default()] * 2,
         names=["b", "self"],
         map_size=map_size,
-        game_time_limit=game_time_limit,
     )
 
     fails = 0
