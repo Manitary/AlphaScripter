@@ -760,83 +760,65 @@ def group_train(
             generation = 0
 
 
-def speed_train(trainer: str, default_mutation_chance: float = 0.01):
-    mutation_chance = default_mutation_chance
-    game_time = 7200
-    # game_time = 3000
-
+def speed_train(
+    trainer: str,
+    base_mutation_chance: float = 0.01,
+    anneal_amount: int = settings.anneal_amount,
+    map_size: MapSize = MapSize.TINY,
+    game_time: float = 7200,
+    instances: int = 10,
+    **kwargs: Any,
+) -> None:
     ai_parent = AI.from_file("best")
     second_place = copy.deepcopy(ai_parent)
 
     fails = 0
     generation = 0
-
-    best = -100000000000000000
+    mutation_chance = base_mutation_chance
+    default_score = -100000000000000000
+    best = default_score
     real_wins = 0
 
     while True:
         generation += 1
-
-        if generation != 1:
-            crossed = crossover(ai_parent, second_place, mutation_chance)
-            b = copy.deepcopy(crossed).mutate(mutation_chance)
-        else:
+        if generation == 1:
             b = copy.deepcopy(ai_parent)
-
+        else:
+            b = crossover(ai_parent, second_place, mutation_chance).mutate(
+                mutation_chance
+            )
         b.export("b")
 
         game_settings = GameSettings(
-            civilisations=["huns"] * 2,
+            civilisations=[Civilisation.default()] * 2,
             names=["b", trainer],
-            map_size="tiny",
+            map_size=map_size,
             game_time_limit=int(game_time),
+            **kwargs,
         )
         launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
+            executable_path=EXECUTABLE_PATH,
             settings=game_settings,
         )
 
-        games = launcher.launch_games(instances=10, round_robin=False)
-        games = [game for game in games if game.is_valid]
-
-        real_wins = 0
-        b_score = 0
-
-        for game in enumerate(games):
-            assert isinstance(game, Game)
-            if game.winner == 1:
-                real_wins += 1
-                b_score -= game.elapsed_game_time
-
+        games = [game for game in launcher.launch_games(instances) if game.is_valid]
+        real_wins = sum(1 for game in games if game.winner == 1)
         if real_wins < 10:
-            b_score = -100000000000000000
-
+            b_score = default_score
+        else:
+            b_score = -sum(game.elapsed_game_time for game in games)
         # print(real_wins)
-
-        # except:
-        #    pass
-        #    print("fail")
 
         # checks number of rounds with no improvement and sets annealing
         if b_score <= best:
-            # print(b_score)
             fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
-                    0.001,
-                )
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
         else:
             best = b_score
             print(f"New best: {best}")
             winner = copy.deepcopy(b)
             fails = 0
-            mutation_chance = default_mutation_chance
+            mutation_chance = base_mutation_chance
 
             second_place = copy.deepcopy(ai_parent)
             ai_parent = copy.deepcopy(winner)
@@ -847,7 +829,7 @@ def speed_train(trainer: str, default_mutation_chance: float = 0.01):
                 game_time = (-1 * best / 10) / 0.75
                 print(f"New time limit: {game_time}")
 
-        if generation == 1 and best == -100000000000000000:
+        if generation == 1 and best == default_score:
             generation = 0
 
 
