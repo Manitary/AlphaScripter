@@ -23,6 +23,20 @@ def setup_ai_files() -> None:
             f.write("")
 
 
+def set_annealing(
+    fails: int, mutation_chance: float, anneal_amount: int = settings.anneal_amount
+) -> float:
+    if fails % 2 == 0:
+        return min(
+            mutation_chance + fails / (1000 * anneal_amount),
+            0.2,
+        )
+    return max(
+        mutation_chance - fails / (1000 * anneal_amount),
+        0.001,
+    )
+
+
 # changed so only real wins count
 def extract_round_robin(score: Sequence[int], game_time: int) -> tuple[int, int]:
     p1 = 0
@@ -160,16 +174,7 @@ def run_ffa(
         # checks number of rounds with no improvement and sets annealing
         if score_list[0] == sorted_score_list[0]:
             fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    base_mutation_chance + fails / (1000 * anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    base_mutation_chance - fails / (1000 * anneal_amount),
-                    0.001,
-                )
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
         else:
             fails = 0
             mutation_chance = base_mutation_chance
@@ -239,6 +244,7 @@ def run_vs(
     load: bool,
     ai_names: Sequence[str] = AI_NAMES[:2],
     base_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
     map_size: MapSize = MapSize.TINY,
     instances: int = 7,
     **kwargs: Any,
@@ -276,16 +282,7 @@ def run_vs(
         # checks number of rounds with no improvement and sets annealing
         if real_wins < 4:
             fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    base_mutation_chance + fails / (1000 * settings.anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    base_mutation_chance - fails / (1000 * settings.anneal_amount),
-                    0.001,
-                )
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
         else:
             print("new best")
             winner = copy.deepcopy(ais[1])
@@ -305,9 +302,10 @@ def run_vs_other(
     robustness: int,
     infinite: bool,
     base_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
     map_size: MapSize = MapSize.TINY,
     instances: int = 7,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> None:
     if load:
         ai_parent = AI.from_file("best")
@@ -317,10 +315,7 @@ def run_vs_other(
     second_place = copy.deepcopy(ai_parent)
 
     game_settings = GameSettings(
-        civilisations=civs,
-        names=["b", trainer],
-        map_size=map_size,
-        **kwargs
+        civilisations=civs, names=["b", trainer], map_size=map_size, **kwargs
     )
 
     mutation_chance = base_mutation_chance
@@ -359,16 +354,7 @@ def run_vs_other(
         # checks number of rounds with no improvement and sets annealing
         if wins <= best:
             fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    base_mutation_chance + fails / (1000 * settings.anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    base_mutation_chance - fails / (1000 * settings.anneal_amount),
-                    0.001,
-                )
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
         else:
             best = wins
             print(f"b real wins: {wins}")
@@ -395,9 +381,10 @@ def run_vs_self(
     robustness: int,
     infinite: bool,
     base_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
     map_size: MapSize = MapSize.TINY,
     instances: int = 7,
-    **kwargs
+    **kwargs: Any,
 ) -> None:
     if load:
         ai_parent = AI.from_file("best")
@@ -408,7 +395,7 @@ def run_vs_self(
         civilisations=[Civilisation.default()] * 2,
         names=["b", "self"],
         map_size=map_size,
-        **kwargs
+        **kwargs,
     )
 
     fails = 0
@@ -445,17 +432,7 @@ def run_vs_self(
         # checks number of rounds with no improvement and sets annealing
         if real_wins <= best:
             fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    base_mutation_chance + fails / (1000 * settings.anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    base_mutation_chance - fails / (1000 * settings.anneal_amount),
-                    0.001,
-                )
-
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
         else:
             if real_wins > max_real_wins:
                 max_real_wins = real_wins
