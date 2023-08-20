@@ -879,47 +879,42 @@ def run_elo_once(
     return elo_league.rating[ai]
 
 
-def elo_train(default_mutation_chance: float = settings.default_mutation_chance):
+def elo_train(
+    elo_dict: dict[str, float] | None = None,
+    base_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
+) -> None:
+    elo_dict = elo_dict or settings.eloDict.copy()
     ai_parent = AI.from_file("best")
     second_place = AI.from_file("best")
     fails = 0
     generation = 0
     best = 0
-    mutation_chance = default_mutation_chance
+    mutation_chance = base_mutation_chance
     while True:
         start = time.time()
         generation += 1
-
-        if generation != 1:
-            crossed = crossover(ai_parent, second_place, mutation_chance)
-            b = copy.deepcopy(crossed).mutate(mutation_chance)
-        else:
+        if generation == 1:
             b = copy.deepcopy(ai_parent)
+        else:
+            b = crossover(ai_parent, second_place, mutation_chance).mutate(
+                mutation_chance
+            )
 
         b.export("b")
-
         b_score = run_elo_once("b", elo_dict.copy(), list(settings.eloDict.keys()))
 
         # checks number of rounds with no improvement and sets annealing
         if b_score <= best:
             # print(str(b_score))
             fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
-                    0.001,
-                )
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
         else:
             best = b_score
             print("New Best: " + str(best))
             winner = copy.deepcopy(b)
             fails = 0
-            mutation_chance = default_mutation_chance
+            mutation_chance = base_mutation_chance
 
             second_place = copy.deepcopy(ai_parent)
             ai_parent = copy.deepcopy(winner)
@@ -929,7 +924,7 @@ def elo_train(default_mutation_chance: float = settings.default_mutation_chance)
         if best == 0 and generation == 1:
             generation = 0
 
-        print(str(time.time() - start))
+        print(time.time() - start)
 
 
 def get_ai_data(group_list: list[str]) -> None:
