@@ -645,76 +645,66 @@ def backup() -> None:
         f.write(a)
 
 
+def score_change(wins: int, robustness: int) -> float:
+    if wins > 3.5 * robustness:
+        return 3.5 * robustness + (wins - 3.5 * robustness) / 10
+    return wins
+
+
 def group_train(
     group_list: list[str],
     do_break: bool,
     robustness: int,
-    default_mutation_chance: float = settings.default_mutation_chance,
+    base_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
+    map_size: MapSize = MapSize.TINY,
+    game_time: int = 6000,
+    instances: int = 7,
+    **kwargs: Any,
 ) -> None:
-    game_time = 6000
-
     ai_parent = AI.from_file("best")
     second_place = AI.from_file("best")
 
     fails = 0
     generation = 0
     best = 0
-
-    group_list_local = robustness * group_list.copy()
-
-    mutation_chance = default_mutation_chance
+    mutation_chance = base_mutation_chance
 
     while True:
         generation += 1
-
-        if generation != 1:
-            crossed = crossover(ai_parent, second_place, mutation_chance)
-            b = copy.deepcopy(crossed).mutate(mutation_chance)
-        else:
+        if generation == 1:
             b = copy.deepcopy(ai_parent)
-
+        else:
+            b = crossover(ai_parent, second_place, mutation_chance).mutate(
+                mutation_chance
+            )
         b.export("b")
 
         string = ""
         b_score = 0
-        nest_break = False
         score_dictionary = {x: 0 for x in group_list}
         start = time.time()
 
-        for i, name in enumerate(group_list_local):
-            if nest_break:
-                break
-
-            real_wins = 0
+        for i, name in enumerate(group_list * robustness):
             game_settings = GameSettings(
-                civilisations=[settings.civ, "huns"],
+                civilisations=[Civilisation.default()] * 2,
                 names=["b", name],
-                map_size="tiny",
+                map_size=map_size,
                 game_time_limit=game_time,
+                **kwargs,
             )
             launcher = Launcher(
                 executable_path=EXECUTABLE_PATH,
                 settings=game_settings,
             )
-
-            games = launcher.launch_games(instances=7, round_robin=False)
-            games = [game for game in games if game.is_valid]
-
-            master_score_list: list[list[int]] = []
-            times: list[int] = []
-            string += group_list_local[i] + " : "
-
-            for game in games:
-                if game.winner == 1:
-                    real_wins += 1
-                    score_dictionary[group_list_local[i]] += 1
-                master_score_list.append(game.scores)
-                times.append(game.elapsed_game_time)
-
-            string += str(real_wins) + " "
-
-            if real_wins == 0 and i == 0 and do_break:
-                nest_break = True
+            real_wins = sum(
+                1
+                for game in launcher.launch_games(instances)
+                if game.is_valid and game.winner == 1
+            )
+            score_dictionary[name] += real_wins
+            string += f"{name} : {real_wins} "
+            if i == 0 and do_break and real_wins == 0:
                 break
 
             # b_score = 0
@@ -740,36 +730,21 @@ def group_train(
             #        nest_break = True
             #        break
 
-        b_score = 0
-        for ai in score_dictionary:
-            local_wins = score_dictionary[ai]
-            if local_wins > 3.5 * robustness:
-                b_score += 3.5 * robustness + (local_wins - 3.5 * robustness) / 10
-            else:
-                b_score += local_wins
-
+        b_score = sum(
+            score_change(wins, robustness) for wins in score_dictionary.values()
+        )
         # print(str(b_score) + " " + str(time.time() - start))
 
         # checks number of rounds with no improvement and sets annealing
         if b_score <= best:
-            # print(string)
             fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
-                    0.001,
-                )
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
         else:
             best = b_score
             print(f"{string}total score : {best} Time: {time.time() - start}")
             winner = copy.deepcopy(b)
             fails = 0
-            mutation_chance = default_mutation_chance
+            mutation_chance = base_mutation_chance
 
             second_place = copy.deepcopy(ai_parent)
             ai_parent = copy.deepcopy(winner)
