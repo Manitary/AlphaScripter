@@ -352,6 +352,14 @@ class GameStats:
         return [player.score for player in self.player_stats.values()]
 
     @property
+    def player_scores(self) -> dict[str, int]:
+        return {player.name: player.score for player in self.player_stats.values()}
+
+    @property
+    def stats(self) -> dict[int, PlayerStats]:
+        return self.player_stats
+
+    @property
     def alives(self) -> list[bool]:
         return [player.alive for player in self.player_stats.values()]
 
@@ -648,6 +656,14 @@ class Game:
     @property
     def scores(self) -> list[int]:
         return self._stats.scores
+
+    @property
+    def stats(self) -> dict[int, PlayerStats]:
+        return self._stats.stats
+
+    @property
+    def player_scores(self) -> dict[str, int]:
+        return self._stats.player_scores
 
     @property
     def elapsed_game_time(self) -> int:

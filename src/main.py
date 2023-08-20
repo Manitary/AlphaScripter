@@ -38,18 +38,16 @@ def set_annealing(
 
 
 # changed so only real wins count
-def extract_round_robin(score: Sequence[int], game_time: int) -> tuple[int, int]:
-    p1 = 0
-    p2 = 0
-    if score[0] > score[1]:
-        p1 += 1
-    elif score[1] > score[0]:
-        p2 += 1
-    if game_time > 0.9 * settings.game_time:
-        # print("real win!")
-        p1 *= 0
-        p2 *= 0
-    return p1, p2
+def extract_round_robin(
+    p1: int, p2: int, game_time: int, max_game_time: int = settings.game_time
+) -> tuple[int, int]:
+    if game_time > 0.9 * max_game_time:
+        return 0, 0
+    if p1 > p2:
+        return 1, 0
+    if p2 > p1:
+        return 0, 1
+    return 0, 0
 
 
 def create_seeds(threshold: int, civ: str = settings.civ) -> AI:
@@ -445,181 +443,123 @@ def run_vs_self(
             winner.export("best")
             winner.save_to_file("best")
 
-        if real_wins == 7 * robustness or fails > 30:
-            best = 0
-            if max_real_wins > 3.5 * robustness:
-                # ! winner is defined in only one of the two previous if branches
-                if not winner:
-                    print("Error, no winner")
-                    break
-                winner.export("self")
-                print("success, reset!")
-                backup()
-                max_real_wins = 0
-                generation = 1
+        if fails <= 30 and real_wins != 7 * robustness:
+            continue
+        best = 0
+        if max_real_wins <= 3.5 * robustness:
+            continue
+        # ! winner is defined in only one of the two previous if branches
+        if not winner:
+            print("Error, no winner")
+            continue
+        winner.export("self")
+        print("success, reset!")
+        backup()
+        max_real_wins = 0
+        generation = 1
 
 
 def run_robin(
-    iterations: int, default_mutation_chance: float = settings.default_mutation_chance
-):
-    generation = 1
-    fails = 0
-
-    mutation_chance = default_mutation_chance
-
+    iterations: int,
+    ai_names: Sequence[str] = AI_NAMES[:4],
+    default_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
+    map_size: MapSize = MapSize.TINY,
+    **kwargs: Any,
+) -> None:
+    if iterations < 1:
+        raise ValueError("At least 1 iteration required")
     ai_parent = AI.from_file("best")
     second_place = copy.deepcopy(ai_parent)
 
     game_settings = GameSettings(
-        civilisations=["huns"] * 5,
-        names=["parent", "b", "c", "d"],
-        map_size="tiny",
-        game_time_limit=settings.game_time,
-        map_id="arabia",
+        civilisations=[Civilisation.default()] * len(ai_names),
+        names=list(ai_names),
+        map_size=map_size,
+        **kwargs,
     )
 
+    winner = None
+    fails = 0
+    mutation_chance = default_mutation_chance
     while True:
-        generation += 1
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        b = crossed.mutate(mutation_chance)
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        c = crossed.mutate(mutation_chance)
-        crossed = crossover(ai_parent, second_place, mutation_chance)
-        d = crossed.mutate(mutation_chance)
-
-        ai_parent.export("parent")
-        b.export("b")
-        c.export("c")
-        d.export("d")
-
-        parent_score, b_score, c_score, d_score = (0, 0, 0, 0)
-        score_list = [0, 0, 0, 0]
-
-        for _ in range(iterations):
-            launcher = Launcher(
-                executable_path=EXECUTABLE_PATH,
-                settings=game_settings,
+        ais = {ai_names[0]: ai_parent}
+        for name in ai_names[1:]:
+            ais[name] = crossover(ai_parent, second_place, mutation_chance).mutate(
+                mutation_chance
             )
+        for name, ai in ais.items():
+            ai.export(name)
+
+        scores = {name: 0 for name in ai_names}
+        score_list: list[int] = []
+
+        launcher = Launcher(
+            executable_path=EXECUTABLE_PATH,
+            settings=game_settings,
+        )
+        skip = False
+        fail = False
+        for _ in range(iterations):
             # master_score_list = [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]]
             # [p,b],[p,c],[p,d],[b,c],[b,d][c,d]
-            games = launcher.launch_games(round_robin=True)
-            games = [game for game in games if game.is_valid]
-            master_score_list: list[list[int]] = []
-            times: list[int] = []
-            skip = False
-
-            for game in games:
-                master_score_list.append(game.scores)
-                times.append(game.elapsed_game_time)
-
-            if len(master_score_list) == 6:
-                parent_temp_score, b_temp_score = extract_round_robin(
-                    master_score_list[0], times[0]
-                )
-                parent_score += parent_temp_score
-                b_score += b_temp_score
-
-                parent_temp_score, c_temp_score = extract_round_robin(
-                    master_score_list[1], times[1]
-                )
-                parent_score += parent_temp_score
-                c_score += c_temp_score
-
-                parent_temp_score, d_temp_score = extract_round_robin(
-                    master_score_list[2], times[2]
-                )
-                parent_score += parent_temp_score
-                d_score += d_temp_score
-
-                b_temp_score, c_temp_score = extract_round_robin(
-                    master_score_list[3], times[3]
-                )
-                b_score += b_temp_score
-                c_score += c_temp_score
-
-                b_temp_score, d_temp_score = extract_round_robin(
-                    master_score_list[4], times[4]
-                )
-                b_score += b_temp_score
-                d_score += d_temp_score
-
-                c_temp_score, d_temp_score = extract_round_robin(
-                    master_score_list[5], times[5]
-                )
-                c_score += c_temp_score
-                d_score += d_temp_score
-
-                score_list = [parent_score, b_score, c_score, d_score]
-                score_list = sorted(score_list, reverse=True)
-                fail = False
-
-            else:
-                parent_score, b_score, c_score, d_score = (0, 0, 0, 0)
+            games = [
+                game
+                for game in launcher.launch_games(round_robin=True)
+                if game.is_valid
+            ]
+            if len(games) < len(ai_names) * (len(ai_names) - 1) // 2:
                 skip = True
                 break
 
-        if not skip:  # ! skip not necessarily defined
-            # checks number of rounds with no improvement and sets annealing
-            if parent_score == max(score_list) or max(score_list) < 3 * iterations + 1:
-                fails += 1
-                if fails % 2 == 0:
-                    mutation_chance = min(
-                        default_mutation_chance
-                        + fails / (1000 * settings.anneal_amount),
-                        0.2,
-                    )
-                else:
-                    mutation_chance = max(
-                        default_mutation_chance
-                        - fails / (1000 * settings.anneal_amount),
-                        0.001,
-                    )
-                fail = True
-            else:
-                fails = 0
-                mutation_chance = default_mutation_chance
+            for game in games:
+                game_score = game.player_scores
+                game_time = game.elapsed_game_time
+                a, b = list(game_score.keys())
+                p1, p2 = (game_score[name] for name in (a, b))
+                x, y = extract_round_robin(p1, p2, game_time)
+                scores[a] += x
+                scores[b] += y
 
-            if parent_score == max(score_list) or max(score_list) == 0:
-                winner = copy.deepcopy(ai_parent)
-                second_place = copy.deepcopy(ai_parent)
-                print("parent won by score: " + str(parent_score))
+            score_list = sorted(list(scores.values()), reverse=True)
 
-            elif b_score == max(score_list):
-                winner = copy.deepcopy(b)
-                print("b won by score: " + str(b_score))
+        if skip:
+            continue
 
-            elif c_score == max(score_list):
-                winner = copy.deepcopy(c)
-                print("c won by score: " + str(c_score))
+        # checks number of rounds with no improvement and sets annealing
+        if scores[ai_names[0]] == score_list[0] or score_list[0] < 3 * iterations + 1:
+            fails += 1
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
+            fail = True
+        else:
+            fails = 0
+            mutation_chance = default_mutation_chance
 
-            elif d_score == max(score_list):
-                winner = copy.deepcopy(d)
-                print("d won by score: " + str(d_score))
+        if score_list[0] == 0 or scores[ai_names[0]] == score_list[0]:
+            winner = copy.deepcopy(ai_parent)
+            second_place = copy.deepcopy(ai_parent)
+            print(f"parent won by score: {scores[ai_names[0]]}")
+        else:
+            for name, score in scores.items():
+                if name == ai_names[0]:
+                    continue
+                if score == score_list[0]:
+                    winner = copy.deepcopy(ais[name])
+                    print(f"{name} won by score: {score}")
+                    break
 
-            if not fail:  # ! fail not necessarily defined
-                if parent_score == score_list[1]:
-                    second_place = copy.deepcopy(ai_parent)
+        if not fail:
+            for name, score in scores.items():
+                if score == score_list[1]:
+                    second_place = copy.deepcopy(ais[name])
+                    break
 
-                elif b_score == score_list[1]:
-                    second_place = copy.deepcopy(b)
-
-                elif c_score == score_list[1]:
-                    second_place = copy.deepcopy(c)
-
-                elif d_score == score_list[1]:
-                    second_place = copy.deepcopy(d)
-
-            ai_parent = copy.deepcopy(winner)  # ! winner not necessarily defined
-            winner.export("best")
-            winner.save_to_file("best")
-
-            # if fails > fails_before_reset:
-            #    print("fail threshold exceeded, resetting...")
-            #    write_ai(winner, str(max(score_list)))
-            #    save_ai(winner, str(max(score_list)))
-            #    fails = 0
-            #    generation = 0
-            #    ai_parent = generate_ai()
+        if not winner:  # ! winner not necessarily defined
+            print("Error, no winner")
+            continue
+        ai_parent = copy.deepcopy(winner)
+        winner.export("best")
+        winner.save_to_file("best")
 
 
 def benchmarker(ai1: str, ai2: str, rounds: int, civs: list[str]) -> int:
@@ -1322,9 +1262,10 @@ def run_vs_other_slow(
     instance_count: int,
     infinite: bool,
     default_mutation_chance: float = settings.default_mutation_chance,
+    map_size: MapSize = MapSize.TINY,
+    game_time: int = 3600,
+    **kwargs: Any,
 ) -> None:
-    game_time = 3600
-
     if load:
         ai_parent = AI.from_file(f"{settings.network_drive}best")
     else:
@@ -1332,17 +1273,17 @@ def run_vs_other_slow(
 
     second_place = copy.deepcopy(ai_parent)
 
-    fails = 0
-    generation = 0
-
     game_settings = GameSettings(
         civilisations=civs,
         names=["b", trainer],
-        map_size="tiny",
+        map_size=map_size,
         game_time_limit=game_time,
         speed=False,
+        **kwargs,
     )
 
+    fails = 0
+    generation = 0
     best = 0
     real_wins = 0
     wins = 0
