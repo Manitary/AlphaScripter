@@ -2,6 +2,8 @@ import copy
 import itertools
 import random
 import time
+from dataclasses import dataclass
+from enum import StrEnum, auto
 from itertools import zip_longest
 from typing import Any, Sequence
 
@@ -562,87 +564,71 @@ def run_robin(
         winner.save_to_file("best")
 
 
-def benchmarker(ai1: str, ai2: str, rounds: int, civs: list[str]) -> int:
-    stats_dict: dict[str, list[list[str | float | int]]] = {}
+class Outcome(StrEnum):
+    WIN = auto()
+    LOSS = auto()
+    DRAW = auto()
 
-    stats_dict[ai1] = [[], [], []]
-    stats_dict[ai2] = [[], [], []]
 
+@dataclass
+class GameResult:
+    outcome: Outcome
+    score: int
+    time: int
+
+    def __str__(self) -> str:
+        return f"{self.outcome},{self.time},{self.score}"
+
+
+def benchmarker(
+    ai1: str,
+    ai2: str,
+    rounds: int,
+    civs: list[str],
+    instances: int = 7,
+    map_size: MapSize = MapSize.TINY,
+    **kwargs: Any,
+) -> int:
     game_settings = GameSettings(
-        civilisations=civs,
-        names=[ai1, ai2],
-        map_size="tiny",
-        game_time_limit=settings.game_time,
+        civilisations=civs, names=[ai1, ai2], map_size=map_size, **kwargs
     )
-
-    ai1_wins = 0
-    ai2_wins = 0
-    stalemates = 0
-    failed_games = 0
-    time = 0
-
-    rounds = int(rounds / 7)
-
-    for _ in range(rounds):
-        # print(x)
-
-        launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
-            settings=game_settings,
-        )
-
-        games = launcher.launch_games(instances=7, round_robin=False)
-        games = [game for game in games if game.is_valid]
-
-        master_score_list: list[list[int]] = []
-        times: list[int] = []
-
+    launcher = Launcher(
+        executable_path=EXECUTABLE_PATH,
+        settings=game_settings,
+    )
+    stats: dict[str, list[GameResult]] = {}
+    for _ in range(int(rounds / 7)):
         local_wins = 0
-
-        for game in games:
-            time = game.elapsed_game_time
-            score = game.scores
-            times.append(time)
-            master_score_list.append(score)
-
+        for game in launcher.launch_games(instances):
+            if not game.is_valid:
+                continue
+            game_time = game.elapsed_game_time
+            p1, p2 = game.scores
             if game.winner == 1:
-                ai1_wins += 1
                 local_wins += 1
-                stats_dict[ai1][0].append("win")
-                stats_dict[ai1][1].append(time)
-                stats_dict[ai1][2].append(score[0])
-                stats_dict[ai2][0].append("loss")
-                stats_dict[ai2][1].append(time)
-                stats_dict[ai2][2].append(score[0])
-
+                stats[ai1].append(GameResult(Outcome.WIN, p1, game_time))
+                stats[ai2].append(GameResult(Outcome.LOSS, p2, game_time))
             elif game.winner == 2:
-                ai2_wins += 1
-                stats_dict[ai1][0].append("loss")
-                stats_dict[ai1][1].append(time)
-                stats_dict[ai1][2].append(score[0])
-                stats_dict[ai2][0].append("win")
-                stats_dict[ai2][1].append(time)
-                stats_dict[ai2][2].append(score[0])
-
+                stats[ai1].append(GameResult(Outcome.LOSS, p1, game_time))
+                stats[ai2].append(GameResult(Outcome.WIN, p2, game_time))
             elif game.winner == 0:
-                stats_dict[ai1][0].append("draw")
-                stats_dict[ai1][1].append(time)
-                stats_dict[ai1][2].append(score[0])
-                stats_dict[ai2][0].append("draw")
-                stats_dict[ai2][1].append(time)
-                stats_dict[ai2][2].append(score[0])
-                stalemates += 1
-
+                stats[ai1].append(GameResult(Outcome.DRAW, p1, game_time))
+                stats[ai2].append(GameResult(Outcome.DRAW, p2, game_time))
         print(local_wins)
 
-    print(f"{ai1_wins}/{ai2_wins}/{stalemates}/{failed_games}")
+    ai1_wins = sum(1 for x in stats[ai1] if x.outcome == Outcome.WIN)
+    print(
+        f"{ai1_wins}/"
+        f"{sum(1 for x in stats[ai1] if x.outcome == Outcome.LOSS)}/"
+        f"{sum(1 for x in stats[ai1] if x.outcome == Outcome.DRAW)}"
+    )
     # print("Average gametime: " + str(time/(ai1_wins + ai2_wins + stalemates)))
 
-    with open(f"{ai1},{ai2}data.csv", "w+", encoding="utf-8") as f:
+    with open(f"{ai1},{ai2}data.csv", "w", encoding="utf-8") as f:
         f.write("AI,result,game time,score\n")
-        for k, v in stats_dict.items():
-            for a, b, c in zip(v[0], v[1], v[2]):
-                f.write(f"{k},{a},{b},{c}\n")
+        for name, results in stats.items():
+            for result in results:
+                f.write(f"{name},{str(result)}\n")
 
     return ai1_wins
 
