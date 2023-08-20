@@ -307,6 +307,7 @@ def run_vs_other(
     base_mutation_chance: float = settings.default_mutation_chance,
     map_size: MapSize = MapSize.TINY,
     instances: int = 7,
+    **kwargs: Any
 ) -> None:
     if load:
         ai_parent = AI.from_file("best")
@@ -319,6 +320,7 @@ def run_vs_other(
         civilisations=civs,
         names=["b", trainer],
         map_size=map_size,
+        **kwargs
     )
 
     mutation_chance = base_mutation_chance
@@ -395,6 +397,7 @@ def run_vs_self(
     base_mutation_chance: float = settings.default_mutation_chance,
     map_size: MapSize = MapSize.TINY,
     instances: int = 7,
+    **kwargs
 ) -> None:
     if load:
         ai_parent = AI.from_file("best")
@@ -405,6 +408,7 @@ def run_vs_self(
         civilisations=[Civilisation.default()] * 2,
         names=["b", "self"],
         map_size=map_size,
+        **kwargs
     )
 
     fails = 0
