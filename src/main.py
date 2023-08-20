@@ -833,59 +833,48 @@ def speed_train(
             generation = 0
 
 
-def run_elo_once(ai: str, elo_dict: dict[str, float], group_list: list[str]) -> float:
+def run_elo_once(
+    ai: str,
+    elo_dict: dict[str, float],
+    group_list: list[str],
+    instances: int = 7,
+    map_size: MapSize = MapSize.TINY,
+    game_time: int = 7200,
+    **kwargs: Any,
+) -> float:
     elo_league = Elo(k=20, g=1)
-
-    game_time = 7200
-    games_run: list[list[list[str] | str]] = []
-
     for name in group_list:
         elo_league.add_player(name, rating=elo_dict[name])
-
     elo_league.add_player(ai, rating=1600)
-
+    played = {ai}
     for x, name in enumerate(group_list):
-        if (
-            name != ai
-            and [group_list[x], ai] not in games_run
-            and [ai, group_list[x]] not in games_run
-        ):
-            games_run.append([group_list[x], ai])
+        if name in played:
+            continue
+        played.add(name)
+        game_settings = GameSettings(
+            civilisations=[Civilisation.default()] * 2,
+            names=[ai, name],
+            map_size=map_size,
+            game_time_limit=game_time,
+            **kwargs,
+        )
+        launcher = Launcher(
+            executable_path=EXECUTABLE_PATH,
+            settings=game_settings,
+        )
 
-            game_settings = GameSettings(
-                civilisations=[settings.civ, "huns"],
-                names=[ai, group_list[x]],
-                map_size="tiny",
-                game_time_limit=game_time,
-            )
-            launcher = Launcher(
-                executable_path=EXECUTABLE_PATH,
-                settings=game_settings,
-            )
+        games = [game for game in launcher.launch_games(instances) if game.is_valid]
+        wins = 0
+        for game in games:
+            if game.winner == 1:
+                wins += 1
+                elo_league.game_over(winner=ai, loser=name, winner_home=False)
+            elif game.winner == 2:
+                elo_league.game_over(winner=name, loser=ai, winner_home=False)
 
-            games = launcher.launch_games(instances=7, round_robin=False)
-            games = [game for game in games if game.is_valid]
-
-            master_score_list: list[list[int]] = []
-            times: list[int] = []
-
-            wins = 0
-            for game in games:
-                master_score_list.append(game.scores)
-                times.append(game.elapsed_game_time)
-                if game.winner == 1:
-                    wins += 1
-                    elo_league.game_over(
-                        winner=ai, loser=group_list[x], winner_home=False
-                    )
-                elif game.winner == 2:
-                    elo_league.game_over(
-                        winner=group_list[x], loser=ai, winner_home=False
-                    )
-
-            if x == 0 and wins == 0:
-                # print("failed")
-                return 0
+        if x == 0 and wins == 0:
+            # print("failed")
+            return 0
 
     return elo_league.rating[ai]
 
