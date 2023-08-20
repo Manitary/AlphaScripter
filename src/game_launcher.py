@@ -279,12 +279,12 @@ class GameSettings:
         return civs
 
     def make_round_robin(self) -> list[Self]:
-        settings: list[Self] = []
+        games_settings: list[Self] = []
         for player_1, player_2 in itertools.combinations(self.players.values(), r=2):
             game_settings = copy.deepcopy(self)
             game_settings.players = {1: player_1, 2: player_2}
-            settings.append(game_settings)
-        return settings
+            games_settings.append(game_settings)
+        return games_settings
 
 
 @dataclass(frozen=True)
