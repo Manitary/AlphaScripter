@@ -306,10 +306,11 @@ def run_vs_other(
     civs: list[str],
     robustness: int,
     infinite: bool,
-    default_mutation_chance: float = settings.default_mutation_chance,
+    base_mutation_chance: float = settings.default_mutation_chance,
+    game_time_limit: int = settings.game_time,
+    map_size: MapSize = MapSize.TINY,
+    instances: int = 7,
 ) -> None:
-    # game_time = 7200
-
     if load:
         ai_parent = AI.from_file("best")
     else:
@@ -317,27 +318,25 @@ def run_vs_other(
 
     second_place = copy.deepcopy(ai_parent)
 
-    fails = 0
-    generation = 0
-
     game_settings = GameSettings(
         civilisations=civs,
         names=["b", trainer],
-        map_size="tiny",
-        game_time_limit=settings.game_time,
-        map_id="arabia",
+        map_size=map_size,
+        game_time_limit=game_time_limit,
     )
 
+    mutation_chance = base_mutation_chance
+    fails = 0
+    generation = 0
     best = 0
-    mutation_chance = default_mutation_chance
     wins = 0
 
     while wins < 7 * robustness:
         generation += 1
-
         if generation != 1:
-            crossed = crossover(ai_parent, second_place, mutation_chance)
-            b = copy.deepcopy(crossed).mutate(mutation_chance)
+            b = crossover(ai_parent, second_place, mutation_chance).mutate(
+                mutation_chance
+            )
         else:
             b = copy.deepcopy(ai_parent)
 
@@ -346,56 +345,38 @@ def run_vs_other(
         wins = 0
         nest_break = False
 
+        launcher = Launcher(
+            executable_path=EXECUTABLE_PATH,
+            settings=game_settings,
+        )
+
         for i in range(robustness):
-            launcher = Launcher(
-                executable_path=EXECUTABLE_PATH,
-                settings=game_settings,
-            )
-
-            master_score_list: list[list[int]] = []
-
-            games = launcher.launch_games(instances=7, round_robin=False)
-            games = [game for game in games if game.is_valid]
-
-            for game in games:
-                if game.winner == 1:
-                    wins += 1
-                master_score_list.append(game.scores)
-                if game.elapsed_game_time < 100:
-                    nest_break = True
-
-            # for x in range(len(master_score_list)):
-            #    if master_score_list[x][0] > master_score_list[x][1]:
-            #        if times[x]/game_time < .9:
-            #            wins += 1
+            games = [game for game in launcher.launch_games(instances) if game.is_valid]
+            wins += sum(game.winner == 1 for game in games)
+            nest_break = any(game.elapsed_game_time < 100 for game in games)
 
             if wins == 0 or wins + (robustness - (i + 1)) * 7 < best or nest_break:
-                # print(str(wins + (robustness - (i + 1)) * 7))
-                # print("individual failed")
                 break
 
-        b_score = wins
-        # train_score = score_list[1]
-
         # checks number of rounds with no improvement and sets annealing
-        if b_score <= best:
+        if wins <= best:
             fails += 1
             if fails % 2 == 0:
                 mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
+                    base_mutation_chance + fails / (1000 * settings.anneal_amount),
                     0.2,
                 )
             else:
                 mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
+                    base_mutation_chance - fails / (1000 * settings.anneal_amount),
                     0.001,
                 )
         else:
-            best = b_score
-            print(str(best) + " real wins: " + str(wins))
+            best = wins
+            print(f"b real wins: {wins}")
             winner = copy.deepcopy(b)
             fails = 0
-            mutation_chance = default_mutation_chance
+            mutation_chance = base_mutation_chance
 
             second_place = copy.deepcopy(ai_parent)
             ai_parent = copy.deepcopy(winner)
@@ -415,34 +396,36 @@ def run_vs_self(
     load: bool,
     robustness: int,
     infinite: bool,
-    default_mutation_chance: float = settings.default_mutation_chance,
+    base_mutation_chance: float = settings.default_mutation_chance,
+    game_time_limit: int = settings.game_time,
+    map_size: MapSize = MapSize.TINY,
+    instances: int = 7,
 ) -> None:
     if load:
         ai_parent = AI.from_file("best")
     else:
         ai_parent = create_seeds(threshold)
 
-    fails = 0
-    generation = 0
-
     game_settings = GameSettings(
-        civilisations=[settings.civ] * 2,
+        civilisations=[Civilisation.default()] * 2,
         names=["b", "self"],
-        map_size="tiny",
-        game_time_limit=settings.game_time,
+        map_size=map_size,
+        game_time_limit=game_time_limit,
     )
 
+    fails = 0
+    generation = 0
     best = 0
     real_wins = 0
     max_real_wins = 0
     ai_parent.export("self")
-    mutation_chance = default_mutation_chance
+    mutation_chance = base_mutation_chance
+    winner = None
 
     while real_wins < 7 * robustness or infinite:
         generation += 1
-
         if generation != 1:
-            b = copy.deepcopy(ai_parent).mutate(mutation_chance)
+            b = ai_parent.mutate(mutation_chance)
         else:
             b = copy.deepcopy(ai_parent)
 
@@ -450,74 +433,55 @@ def run_vs_self(
         real_wins = 0
 
         launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
+            executable_path=EXECUTABLE_PATH,
             settings=game_settings,
         )
 
         for i in range(robustness):
-            games = launcher.launch_games(instances=7, round_robin=False)
-            games = [game for game in games if game.is_valid]
-
-            master_score_list: list[list[int]] = []
-            times: list[int] = []
-
-            for game in games:
-                if game.winner == 1:
-                    real_wins += 1
-                master_score_list.append(game.scores)
-                times.append(game.elapsed_game_time)
-                # except:
-                #    pass
-                #    print("fail")
-            if (
-                real_wins + (robustness - i) * 7 < best
-            ):  # checks if possible to beat best, if not kills
+            games = [game for game in launcher.launch_games(instances) if game.is_valid]
+            real_wins += sum(game.winner == 1 for game in games)
+            # checks if possible to beat best, if not kills
+            if real_wins + (robustness - i) * 7 < best:
                 break
 
-        b_score = real_wins
-
         # checks number of rounds with no improvement and sets annealing
-        if b_score <= best:
+        if real_wins <= best:
             fails += 1
             if fails % 2 == 0:
                 mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
+                    base_mutation_chance + fails / (1000 * settings.anneal_amount),
                     0.2,
                 )
             else:
                 mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
+                    base_mutation_chance - fails / (1000 * settings.anneal_amount),
                     0.001,
                 )
 
         else:
             if real_wins > max_real_wins:
                 max_real_wins = real_wins
-            best = b_score
-            print(f"{best} real wins: {real_wins}")
+            best = real_wins
+            print(f"b real wins: {real_wins}")
             winner = copy.deepcopy(b)
             fails = 0
-            mutation_chance = default_mutation_chance
-
+            mutation_chance = base_mutation_chance
             ai_parent = copy.deepcopy(winner)
             winner.export("best")
             winner.save_to_file("best")
 
         if real_wins == 7 * robustness or fails > 30:
+            best = 0
             if max_real_wins > 3.5 * robustness:
-                winner.export("self")  # ! winner may not be defined
+                # ! winner is defined in only one of the two previous if branches
+                if not winner:
+                    print("Error, no winner")
+                    break
+                winner.export("self")
                 print("success, reset!")
                 backup()
                 max_real_wins = 0
                 generation = 1
-                # k = eloDict.keys()
-                # print(run_elo_once("best",eloDict,list(k)))
-            # else:
-            #    ai_parent = read_ai("best")
-            #    print("fail,    reset!")
-            #    max_real_wins = 0
-            #    generation = 1
-            best = 0
 
 
 def run_robin(
