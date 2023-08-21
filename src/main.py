@@ -590,6 +590,7 @@ def benchmarker(
     civs: list[str],
     instances: int = 7,
     map_size: MapSize = MapSize.TINY,
+    save_data: bool = True,
     **kwargs: Any,
 ) -> int:
     game_settings = GameSettings(
@@ -600,7 +601,7 @@ def benchmarker(
         settings=game_settings,
     )
     stats: dict[str, list[GameResult]] = {name: [] for name in (ai1, ai2)}
-    for _ in range(int(rounds / 7)):
+    for _ in range(int(rounds / instances)):
         local_wins = 0
         for game in launcher.launch_games(instances):
             if not game.is_valid:
@@ -617,22 +618,24 @@ def benchmarker(
             elif game.winner == 2:
                 stats[ai1].append(GameResult(Outcome.LOSS, p1, game_time))
                 stats[ai2].append(GameResult(Outcome.WIN, p2, game_time))
-
-        print(local_wins)
+        if save_data:
+            print(local_wins)
 
     ai1_wins = sum(1 for x in stats[ai1] if x.outcome == Outcome.WIN)
-    print(
-        f"{ai1_wins}/"
-        f"{sum(1 for x in stats[ai1] if x.outcome == Outcome.LOSS)}/"
-        f"{sum(1 for x in stats[ai1] if x.outcome == Outcome.DRAW)}"
-    )
+    if save_data:
+        print(
+            f"{ai1_wins}/"
+            f"{sum(1 for x in stats[ai1] if x.outcome == Outcome.LOSS)}/"
+            f"{sum(1 for x in stats[ai1] if x.outcome == Outcome.DRAW)}"
+        )
     # print("Average gametime: " + str(time/(ai1_wins + ai2_wins + stalemates)))
 
-    with open(f"{ai1},{ai2}data.csv", "w", encoding="utf-8") as f:
-        f.write("AI,result,game time,score\n")
-        for name, results in stats.items():
-            for result in results:
-                f.write(f"{name},{result}\n")
+    if save_data:
+        with open(f"{ai1},{ai2}data.csv", "w", encoding="utf-8") as f:
+            f.write("AI,result,game time,score\n")
+            for name, results in stats.items():
+                for result in results:
+                    f.write(f"{name},{result}\n")
 
     return ai1_wins
 
@@ -1085,6 +1088,7 @@ def benchmarker_slow(
     rounds: int = 7 * 40,
     instances: int = 7,
     maps_size: MapSize = MapSize.TINY,
+    save_data: bool = True,
     **kwargs: Any,
 ) -> int:
     return benchmarker(
@@ -1094,6 +1098,7 @@ def benchmarker_slow(
         rounds=rounds,
         instances=instances,
         map_size=maps_size,
+        save_data=save_data,
         speed=False,
         **kwargs,
     )
@@ -1326,46 +1331,25 @@ def run_vs_self_slow(
         # for i in range(100):
 
 
-def basic_benchmarker(ai1: str, ai2: str, rounds: int, civs: list[str]) -> int:
-    stats_dict = {}
-
-    stats_dict[ai1] = [[], [], []]
-    stats_dict[ai2] = [[], [], []]
-
-    game_settings = GameSettings(
-        civilisations=civs,
-        names=[ai1, ai2],
-        map_size="tiny",
-        game_time_limit=settings.game_time,
+def basic_benchmarker(
+    ai1: str,
+    ai2: str,
+    rounds: int,
+    civs: list[str],
+    instances: int = 7,
+    map_size: MapSize = MapSize.TINY,
+    **kwargs: Any,
+) -> int:
+    return benchmarker(
+        ai1=ai1,
+        ai2=ai2,
+        rounds=rounds,
+        civs=civs,
+        instances=instances,
+        map_size=map_size,
+        save_data=False,
+        **kwargs,
     )
-
-    ai1_wins = 0
-    ai2_wins = 0
-    stalemates = 0
-    rounds = int(rounds / 7)
-
-    for _ in range(rounds):
-        # print(x)
-
-        launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
-            settings=game_settings,
-        )
-
-        games = launcher.launch_games(instances=7, round_robin=False)
-        games = [game for game in games if game.is_valid]
-
-        local_wins = 0
-        for game in games:
-            if game.winner == 1:
-                ai1_wins += 1
-                local_wins += 1
-            elif game.winner == 2:
-                ai2_wins += 1
-            else:
-                stalemates += 1
-
-    return ai1_wins
 
 
 # get_ai_data(working_ais)
