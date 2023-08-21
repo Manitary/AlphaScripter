@@ -11,7 +11,7 @@ from elosports.elo import Elo
 
 import settings
 from src.functions import crossover
-from src.game_launcher import Civilisation, Game, GameSettings, Launcher, MapSize
+from src.game_launcher import Civilisation, GameSettings, Launcher, MapSize
 from src.models import AI
 
 AI_NAMES = ("parent", "b", "c", "d", "e", "f", "g", "h")
@@ -1462,150 +1462,111 @@ def run_vs_selfs(
     load: bool,
     robustness: int,
     infinite: bool,
-    default_mutation_chance: float = settings.default_mutation_chance,
+    instances: int = 7,
+    base_mutation_chance: float = settings.default_mutation_chance,
+    anneal_amount: int = settings.anneal_amount,
+    map_size: MapSize = MapSize.TINY,
+    **kwargs: Any,
 ) -> None:
     if load:
         ai_parent = AI.from_file("best")
     else:
         ai_parent = create_seeds(threshold)
 
-    fails = 0
-    generation = 0
-
-    best = 0
-    real_wins = 0
-
-    self1 = copy.deepcopy(ai_parent)
-    self2 = copy.deepcopy(ai_parent)
-    self3 = copy.deepcopy(ai_parent)
-
     # print("loading ais, please edit if unwanted")
     # self1 = copy.deepcopy(ai_parent)
     # self2 = read_ai("4076768862")
     # self3 = read_ai("7004446841")
 
-    self1.export("self")
-    self2.export("self2")
-    self3.export("self3")
     group_list = ["self", "self2", "self3"]
+    ais = {name: copy.deepcopy(ai_parent) for name in group_list}
+    for name, ai in ais.items():
+        ai.export(name)
 
-    test_ai = "king"
-
-    mutation_chance = default_mutation_chance
+    mutation_chance = base_mutation_chance
     sets_to_be_run = len(group_list) * robustness
+    fails = 0
+    generation = 0
+    best = 0
+    real_wins = 0
+    winner = None
 
-    while real_wins < 7 * robustness or infinite:
+    while infinite or real_wins < instances * robustness:
         generation += 1
-        sets_run = 0
-
-        if generation != 1:
-            b = copy.deepcopy(ai_parent).mutate(mutation_chance)
-        else:
+        if generation == 1:
             b = copy.deepcopy(ai_parent)
+        else:
+            b = copy.deepcopy(ai_parent).mutate(mutation_chance)
 
         b.export("b")
         real_wins = 0
-        nest_break = False
-
         game_settings = GameSettings(
-            civilisations=[settings.civ] * 2,
-            names=["b", test_ai],
-            map_size="tiny",
-            game_time_limit=settings.game_time,
+            civilisations=[Civilisation.default()] * 2,
+            names=["b", "king"],
+            map_size=map_size,
         )
         launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
+            executable_path=EXECUTABLE_PATH,
             settings=game_settings,
         )
 
-        games = launcher.launch_games(instances=7, round_robin=False)
-        games = [game for game in games if game.is_valid]
-
-        sets_run += 1
-
-        test_wins = 0
-        for game in games:
-            if game.winner == 1:
-                test_wins += 1
+        test_wins = sum(
+            1
+            for game in launcher.launch_games(instances)
+            if game.is_valid and game.winner == 1
+        )
 
         if test_wins < 6:
             continue
-        for _ in range(robustness):
-            if nest_break:
+
+        sets_run = 1
+        for i, name in enumerate(group_list * robustness):
+            game_settings = GameSettings(
+                civilisations=[Civilisation.default()] * 2,
+                names=["b", name],
+                map_size=map_size,
+                **kwargs,
+            )
+            launcher = Launcher(
+                executable_path=EXECUTABLE_PATH,
+                settings=game_settings,
+            )
+            if (i + 1) % len(group_list) == 0:
+                sets_run += 1
+            real_wins += sum(
+                1
+                for game in launcher.launch_games(instances)
+                if game.is_valid and game.winner == 1
+            )
+            if best > real_wins + (sets_to_be_run - sets_run) * instances:
+                # print("impossible")
                 break
 
-            for name in group_list:
-                game_settings = GameSettings(
-                    civilisations=[settings.civ] * 2,
-                    names=["b", name],
-                    map_size="tiny",
-                    game_time_limit=settings.game_time,
-                )
-                launcher = Launcher(
-                    executable_path=EXECUTABLE_PATH,
-                    settings=game_settings,
-                )
-
-                games = launcher.launch_games(instances=7, round_robin=False)
-                games = [game for game in games if game.is_valid]
-
-                sets_run += 1
-                for game in games:
-                    if game.winner == 1:
-                        real_wins += 1
-
-                    if game.elapsed_game_time < 100:
-                        # crashed
-                        break
-
-                # print(real_wins)
-                # print((sets_to_be_run - sets_run)*7)
-                # print(best)
-                if nest_break:
-                    break
-
-                if best > real_wins + (sets_to_be_run - sets_run) * 7:
-                    # print("impossible")
-                    nest_break = True
-                    break
-
-        b_score = real_wins
-
         # checks number of rounds with no improvement and sets annealing
-        if b_score <= best:
+        if real_wins <= best:
             fails += 1
-            if fails % 2 == 0:
-                mutation_chance = min(
-                    default_mutation_chance + fails / (1000 * settings.anneal_amount),
-                    0.2,
-                )
-            else:
-                mutation_chance = max(
-                    default_mutation_chance - fails / (1000 * settings.anneal_amount),
-                    0.001,
-                )
-
+            mutation_chance = set_annealing(fails, mutation_chance, anneal_amount)
         else:
-            best = b_score
-            print(str(best) + " real wins: " + str(real_wins))
+            best = real_wins
+            print(f"{best} real wins: {real_wins}")
             winner = copy.deepcopy(b)
             fails = 0
-            mutation_chance = default_mutation_chance
+            mutation_chance = base_mutation_chance
 
             ai_parent = copy.deepcopy(winner)
             winner.export("best")
             winner.save_to_file("best")
 
-        if best == 7 * robustness * 3 or fails > 25:
-            if best > 3.5 * robustness * 3:
-                self3 = copy.deepcopy(self2)
-                self2 = copy.deepcopy(self1)
-                self1 = copy.deepcopy(winner)  # ! winner may not be defined
-
-                self1.export("self")
-                self2.export("self2")
-                self3.export("self3")
-
+        if best == instances * robustness * len(group_list) or fails > 25:
+            if best > instances / 2 * robustness * len(group_list):
+                # ! winner may not be defined
+                if not winner:
+                    continue
+                new_ais = [winner] + [ais[name] for name in group_list[:-1]]
+                for name, new_ai in reversed(list(zip(group_list, new_ais))):
+                    ais[name] = copy.deepcopy(new_ai)
+                for name, ai in ais.items():
+                    ai.export(name)
                 print("success, reset!")
                 backup()
                 generation = 1
