@@ -1021,80 +1021,60 @@ def get_ai_data(
 
 
 def get_single_ai_data(
-    civs: list[str],
+    civs: tuple[str],
     ai: str,
     group_list: list[str],
     dictionary: dict[str, int],
     runs: int,
+    instances: int = 7,
+    game_time: int = 7200,
 ) -> None:
-    stats_dict: dict[str, list[list[str | int | float | list[int]]]] = {}
     elo_league = Elo(k=20, g=1)
-    game_time = 7200
-
     for name in group_list:
         elo_league.add_player(name, rating=dictionary[name])
-
     elo_league.add_player(ai, rating=1600)
 
-    stats_dict[ai] = [[], [], [], []]
+    stats: dict[str, list[GameResult]] = {ai: []}
+    for name in group_list * runs:
+        game_settings = GameSettings(
+            civilisations=civs,
+            names=[ai, name],
+            map_size="tiny",
+            game_time_limit=game_time,
+        )
+        launcher = Launcher(
+            executable_path=EXECUTABLE_PATH,
+            settings=game_settings,
+        )
 
-    for i in range(runs):
-        print(i)
-        for name in group_list:
-            game_settings = GameSettings(
-                civilisations=civs,
-                names=[ai, name],
-                map_size="tiny",
-                game_time_limit=game_time,
+        for game in launcher.launch_games(instances):
+            if not game.is_valid:
+                continue
+            if game.winner:
+                elo_league.game_over(
+                    winner=ai if game.winner == 1 else name,
+                    loser=name if game.winner == 1 else ai,
+                    winner_home=False,
+                )
+            stats[ai].append(
+                GameResult(
+                    Outcome.WIN
+                    if game.winner == 1
+                    else Outcome.DRAW
+                    if game.winner == 0
+                    else Outcome.LOSS,
+                    game.player_scores[ai],
+                    game.elapsed_game_time,
+                    name,
+                )
             )
-            launcher = Launcher(
-                executable_path=EXECUTABLE_PATH,
-                settings=game_settings,
-            )
-
-            games = launcher.launch_games(instances=7, round_robin=False)
-            games = [game for game in games if game.is_valid]
-
-            master_score_list: list[list[int]] = []
-            times: list[int] = []
-
-            wins = 0
-            for game in games:
-                master_score_list.append(game.scores)
-                times.append(game.elapsed_game_time)
-                if game.winner == 1:
-                    wins += 1
-
-                if game.winner == 0:
-                    stats_dict[ai][0].append("draw")
-                    stats_dict[ai][1].append(game.elapsed_game_time)
-                    stats_dict[ai][2].append(game.scores[0])
-                    stats_dict[ai][3].append(name)
-
-                else:
-                    if game.winner == 1:
-                        stats_dict[ai][0].append("win")
-                        stats_dict[ai][1].append(game.elapsed_game_time)
-                        stats_dict[ai][2].append(game.scores[0])
-                        stats_dict[ai][3].append(name)
-
-                        elo_league.game_over(winner=ai, loser=name, winner_home=False)
-
-                    elif game.winner == 2:
-                        stats_dict[ai][0].append("loss")
-                        stats_dict[ai][1].append(game.elapsed_game_time)
-                        stats_dict[ai][2].append(game.scores[0])
-                        stats_dict[ai][3].append(name)
-
-                        elo_league.game_over(winner=name, loser=ai, winner_home=False)
-
     print(elo_league.rating)
-    print(stats_dict)
-    with open("data.csv", "w+", encoding="utf-8") as f:
+    print(stats)
+    with open("data.csv", "w", encoding="utf-8") as f:
         f.write("AI,elo,result,game time,score,opponent\n")
-        for k, v in stats_dict.items():
-            for a, b, c, d in zip(v[0], v[1], v[2], v[3]):
-                f.write(f"{k},{elo_league.rating[k]},{a},{b},{c},{d}\n")
+        for name, results in stats.items():
+            for result in results:
+                f.write(f"{name},{elo_league.rating[name]},{result}\n")
 
 
 def benchmarker_slow(ai1: str, ai2: str, civs: list[str]) -> int:
