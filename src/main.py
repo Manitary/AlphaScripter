@@ -575,9 +575,12 @@ class GameResult:
     outcome: Outcome
     score: int
     time: int
+    opponent: str = ""
 
     def __str__(self) -> str:
-        return f"{self.outcome},{self.time},{self.score}"
+        return f"{self.outcome},{self.time},{self.score}" + (
+            f",{self.opponent}" if self.opponent else ""
+        )
 
 
 def benchmarker(
@@ -596,7 +599,7 @@ def benchmarker(
         executable_path=EXECUTABLE_PATH,
         settings=game_settings,
     )
-    stats: dict[str, list[GameResult]] = {}
+    stats: dict[str, list[GameResult]] = {name: [] for name in (ai1, ai2)}
     for _ in range(int(rounds / 7)):
         local_wins = 0
         for game in launcher.launch_games(instances):
@@ -628,7 +631,7 @@ def benchmarker(
         f.write("AI,result,game time,score\n")
         for name, results in stats.items():
             for result in results:
-                f.write(f"{name},{str(result)}\n")
+                f.write(f"{name},{result}\n")
 
     return ai1_wins
 
@@ -927,103 +930,94 @@ def elo_train(
         print(time.time() - start)
 
 
-def get_ai_data(group_list: list[str]) -> None:
-    stats_dict: dict[str, list[list[str | int | float | list[int]]]] = {}
+def get_ai_data(
+    group_list: list[str],
+    instances: int = 7,
+    game_time: int = 7200,
+    map_size: MapSize = MapSize.TINY,
+    **kwargs: Any,
+) -> None:
     elo_league = Elo(k=20, g=1)
-    game_time = 7200
-    games_run: list[list[str]] = []
-
     for name in group_list:
         elo_league.add_player(name, rating=1600)
-        stats_dict[name] = [[], [], [], []]
 
+    stats: dict[str, list[GameResult]] = {name: [] for name in group_list}
+    played: set[set[str]] = set()
     for name_1, name_2 in itertools.combinations(group_list, 2):
         print(name_1, name_2)
-        if [name_1, name_2] in games_run or [name_2, name_1] in games_run:
+        if {name_1, name_2} in played:
             continue
-
-        games_run.append([name_1, name_2])
+        played.add({name_1, name_2})
 
         # REMOVE THIS later
-        #
-        #
-        #
-        #
-        civs = ["huns", "huns"]
+        # civs = ["huns", "huns"]
         # if group_list[x] == 'best':
         #    civs = ['franks','byzantine']
         # elif group_list[y] == 'best':
         #    ['byzantine','franks']
 
         game_settings = GameSettings(
-            civilisations=civs,
+            civilisations=[Civilisation.default()] * 2,
             names=[name_1, name_2],
-            map_size="tiny",
+            map_size=map_size,
             game_time_limit=game_time,
+            **kwargs,
         )
         launcher = Launcher(
-            executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
+            executable_path=EXECUTABLE_PATH,
             settings=game_settings,
         )
 
-        games = launcher.launch_games(instances=7, round_robin=False)
-        games = [game for game in games if game.is_valid]
-
-        master_score_list: list[list[int]] = []
-        times: list[int] = []
-
-        for game in games:
-            master_score_list.append(game.scores)
-            times.append(game.elapsed_game_time)
-
-            if game.elapsed_game_time < 0.9 * game_time:
-                if game.winner == 1:
-                    stats_dict[name_1][0].append("win")
-                    stats_dict[name_1][1].append(game.elapsed_game_time)
-                    stats_dict[name_1][2].append(game.scores)
-                    stats_dict[name_1][3].append(name_2)
-                    stats_dict[name_2][0].append("loss")
-                    stats_dict[name_2][1].append(game.elapsed_game_time)
-                    stats_dict[name_2][2].append(game.scores)
-                    stats_dict[name_2][3].append(name_1)
-                    elo_league.game_over(
-                        winner=name_1,
-                        loser=name_2,
-                        winner_home=False,
+        for game in launcher.launch_games(instances):
+            if not game.is_valid:
+                continue
+            if game.elapsed_game_time >= 0.9 * game_time or game.winner == 0:
+                stats[name_1].append(
+                    GameResult(
+                        Outcome.DRAW,
+                        game.player_scores[name_1],
+                        game.elapsed_game_time,
+                        name_2,
                     )
-
-                elif game.winner == 2:
-                    stats_dict[name_1][0].append("loss")
-                    stats_dict[name_1][1].append(game.elapsed_game_time)
-                    stats_dict[name_1][2].append(game.scores)
-                    stats_dict[name_1][3].append(name_2)
-                    stats_dict[name_2][0].append("win")
-                    stats_dict[name_2][1].append(game.elapsed_game_time)
-                    stats_dict[name_2][2].append(game.scores)
-                    stats_dict[name_2][3].append(name_1)
-                    elo_league.game_over(
-                        winner=name_2,
-                        loser=name_1,
-                        winner_home=False,
+                )
+                stats[name_2].append(
+                    GameResult(
+                        Outcome.DRAW,
+                        game.player_scores[name_2],
+                        game.elapsed_game_time,
+                        name_1,
                     )
-
-            else:
-                stats_dict[name_1][0].append("draw")
-                stats_dict[name_1][1].append(game.elapsed_game_time)
-                stats_dict[name_1][2].append(game.scores)
-                stats_dict[name_1][3].append(name_2)
-                stats_dict[name_2][0].append("draw")
-                stats_dict[name_2][1].append(game.elapsed_game_time)
-                stats_dict[name_2][2].append(game.scores)
-                stats_dict[name_2][3].append(name_1)
+                )
+                continue
+            stats[name_1].append(
+                GameResult(
+                    Outcome.WIN if game.winner == 1 else Outcome.LOSS,
+                    game.player_scores[name_1],
+                    game.elapsed_game_time,
+                    name_2,
+                )
+            )
+            stats[name_2].append(
+                GameResult(
+                    Outcome.LOSS if game.winner == 1 else Outcome.WIN,
+                    game.player_scores[name_2],
+                    game.elapsed_game_time,
+                    name_1,
+                )
+            )
+            elo_league.game_over(
+                winner=name_1 if game.winner == 1 else name_2,
+                loser=name_2 if game.winner == 1 else name_1,
+                winner_home=False,
+            )
 
     print(elo_league.rating)
-    print(stats_dict)
-    with open("data.csv", "w+", encoding="utf-8") as f:
+    print(stats)
+    with open("data.csv", "w", encoding="utf-8") as f:
         f.write("AI,elo,result,game time,score,opponent\n")
-        for k, v in stats_dict.items():
-            for a, b, c, d in zip(v[0], v[1], v[2], v[3]):
-                f.write(f"{k},{elo_league.rating[k]},{a},{b},{c},{d}\n")
+        for name, results in stats.items():
+            for result in results:
+                f.write(f"{name},{elo_league.rating[name]},{result}\n")
 
 
 def get_single_ai_data(
