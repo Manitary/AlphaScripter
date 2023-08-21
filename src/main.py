@@ -607,16 +607,17 @@ def benchmarker(
                 continue
             game_time = game.elapsed_game_time
             p1, p2 = game.scores
-            if game.winner == 1:
+            if game.winner == 0 or game_time >= 0.9 * game_settings.game_time_limit:
+                stats[ai1].append(GameResult(Outcome.DRAW, p1, game_time))
+                stats[ai2].append(GameResult(Outcome.DRAW, p2, game_time))
+            elif game.winner == 1:
                 local_wins += 1
                 stats[ai1].append(GameResult(Outcome.WIN, p1, game_time))
                 stats[ai2].append(GameResult(Outcome.LOSS, p2, game_time))
             elif game.winner == 2:
                 stats[ai1].append(GameResult(Outcome.LOSS, p1, game_time))
                 stats[ai2].append(GameResult(Outcome.WIN, p2, game_time))
-            elif game.winner == 0:
-                stats[ai1].append(GameResult(Outcome.DRAW, p1, game_time))
-                stats[ai2].append(GameResult(Outcome.DRAW, p2, game_time))
+
         print(local_wins)
 
     ai1_wins = sum(1 for x in stats[ai1] if x.outcome == Outcome.WIN)
@@ -1077,82 +1078,25 @@ def get_single_ai_data(
                 f.write(f"{name},{elo_league.rating[name]},{result}\n")
 
 
-def benchmarker_slow(ai1: str, ai2: str, civs: list[str]) -> int:
-    stats_dict: dict[str, list[list[str | float | list[int]]]] = {}
-
-    stats_dict[ai1] = [[], [], []]
-    stats_dict[ai2] = [[], [], []]
-
-    game_settings = GameSettings(
-        civilisations=civs,
-        names=[ai1, ai2],
-        map_size="tiny",
-        game_time_limit=settings.game_time,
+def benchmarker_slow(
+    ai1: str,
+    ai2: str,
+    civs: list[str],
+    rounds: int = 7 * 40,
+    instances: int = 7,
+    maps_size: MapSize = MapSize.TINY,
+    **kwargs: Any,
+) -> int:
+    return benchmarker(
+        ai1=ai1,
+        ai2=ai2,
+        civs=civs,
+        rounds=rounds,
+        instances=instances,
+        map_size=maps_size,
         speed=False,
+        **kwargs,
     )
-
-    ai1_wins = 0
-    ai2_wins = 0
-    stalemates = 0
-    failed_games = 0
-    time = 0
-
-    launcher = Launcher(
-        executable_path="C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe",
-        settings=game_settings,
-    )
-
-    games = launcher.launch_games(instances=40, round_robin=False)
-    games = [game for game in games if game.is_valid]
-
-    for game in games:
-        time += game.elapsed_game_time
-
-        if (
-            game.scores[0] > game.scores[1]
-            and game.elapsed_game_time / settings.game_time < 0.9
-        ):
-            ai1_wins += 1
-            stats_dict[ai1][0].append("win")
-            stats_dict[ai1][1].append(game.elapsed_game_time)
-            stats_dict[ai1][2].append(game.scores[0])
-            stats_dict[ai2][0].append("loss")
-            stats_dict[ai2][1].append(game.elapsed_game_time)
-            stats_dict[ai2][2].append(game.scores[1])
-
-        elif (
-            game.scores[0] < game.scores[1]
-            and game.elapsed_game_time / settings.game_time < 0.9
-        ):
-            ai2_wins += 1
-            stats_dict[ai1][0].append("loss")
-            stats_dict[ai1][1].append(game.elapsed_game_time)
-            stats_dict[ai1][2].append(game.scores[0])
-            stats_dict[ai2][0].append("win")
-            stats_dict[ai2][1].append(game.elapsed_game_time)
-            stats_dict[ai2][2].append(game.scores[1])
-
-        elif game.scores == [0, 0]:
-            failed_games += 1
-        else:
-            stats_dict[ai1][0].append("draw")
-            stats_dict[ai1][1].append(game.elapsed_game_time)
-            stats_dict[ai1][2].append(game.scores[0])
-            stats_dict[ai2][0].append("draw")
-            stats_dict[ai2][1].append(game.elapsed_game_time)
-            stats_dict[ai2][2].append(game.scores[1])
-            stalemates += 1
-
-    print(f"{ai1_wins}/{ai2_wins}/{stalemates}/{failed_games}")
-    # print("Average gametime: " + str(time/(ai1_wins + ai2_wins + stalemates)))
-
-    with open(f"{ai1},{ai2} data.csv", "w+", encoding="utf-8") as f:
-        f.write("AI,result,game t`ime,score\n")
-        for k, v in stats_dict.items():
-            for a, b, c in zip(v[0], v[1], v[2]):
-                f.write(f"{k},{a},{b},{c}\n")
-
-    return ai1_wins
 
 
 def run_vs_other_slow(
