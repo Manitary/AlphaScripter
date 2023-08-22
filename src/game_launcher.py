@@ -682,12 +682,10 @@ class Launcher:
         debug: bool = False,
     ) -> None:
         self.executable_path = executable_path
-        self.directory, self.aoc_name = os.path.split(executable_path)
-        self.dll_path = (os.path.join(self.directory, "aoc-auto-game.dll")).encode(
-            "UTF-8"
-        )
+        directory, _ = os.path.split(executable_path)
+        self.dll_path = (os.path.join(directory, "aoc-auto-game.dll")).encode("UTF-8")
         self.games: list[Game] = []
-        self.base_port = 64720
+        self.base_port = CONFIG.base_port
         self.settings = settings
         self.debug = debug
 

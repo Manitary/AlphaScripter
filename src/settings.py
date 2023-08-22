@@ -18,6 +18,7 @@ class Config:
     goal_rule_count: int
     goal_action_count: int
     executable_path: str
+    base_port: int
     network_drive: str
     local_drive: str
     working_ais: list[str]

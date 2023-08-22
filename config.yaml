@@ -25,6 +25,7 @@ allow_units: True
 allow_towers: True
 
 executable_path: "C:\\Program Files\\Microsoft Games\\Age of Empires II\\age2_x1.5.exe"
+base_port: 64720
 network_drive: "C:/Program Files/Microsoft Games/Age of Empires II/AI/"
 local_drive: "C:/Program Files/Microsoft Games/Age of Empires II/AI/"
 
