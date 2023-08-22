@@ -667,6 +667,10 @@ class Game:
     def winner(self) -> int:
         return self._stats.winner
 
+    @property
+    def is_running(self) -> bool:
+        return self.status == GameStatus.RUNNING
+
     def __str__(self) -> str:
         return self.name
 
@@ -699,7 +703,7 @@ class Launcher:
 
     @property
     def running_games(self) -> list[Game]:
-        return [game for game in self.games if game.status == GameStatus.RUNNING]
+        return [game for game in self.games if game.is_running]
 
     def launch_games(self, instances: int = 1, round_robin: bool = False) -> list[Game]:
         all_settings = (
