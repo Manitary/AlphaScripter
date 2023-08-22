@@ -943,7 +943,6 @@ def benchmarker_slow(
     civs: list[str],
     rounds: int = 7 * 40,
     instances: int = 7,
-    maps_size: MapSize = MapSize.TINY,
     save_data: bool = True,
     **kwargs: Any,
 ) -> int:
@@ -953,7 +952,6 @@ def benchmarker_slow(
         civs=civs,
         rounds=rounds,
         instances=instances,
-        map_size=maps_size,
         save_data=save_data,
         speed=False,
         **kwargs,
