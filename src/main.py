@@ -2,15 +2,20 @@ import copy
 import itertools
 import random
 import time
-from dataclasses import dataclass
-from enum import StrEnum, auto
 from itertools import zip_longest
 from typing import Any, Sequence
 
 from elosports.elo import Elo
 
 from src.functions import crossover
-from src.game_launcher import Civilisation, GameSettings, Launcher, MapSize
+from src.game_launcher import (
+    Civilisation,
+    GameSettings,
+    Launcher,
+    MapSize,
+    Outcome,
+    PlayerResult,
+)
 from src.models import AI
 from src.settings import CONFIG
 
@@ -85,36 +90,6 @@ def create_seeds(
                 return ai_parent
 
 
-# unused function
-def extract_ffa(master_score: list[list[int]]) -> tuple[int, int, int, int]:
-    a, b, c, d = 0, 0, 0, 0
-
-    for scores in master_score:
-        local_score = scores
-        sorted_list = sorted(scores, reverse=True)
-
-        if local_score[0] == sorted_list[0]:
-            a += 2
-        elif local_score[1] == sorted_list[0]:
-            b += 2
-        elif local_score[2] == sorted_list[0]:
-            c += 2
-        elif local_score[3] == sorted_list[0]:
-            d += 2
-
-        if local_score[0] == sorted_list[1]:
-            a += 1
-        elif local_score[1] == sorted_list[1]:
-            b += 1
-        elif local_score[2] == sorted_list[1]:
-            c += 1
-        elif local_score[3] == sorted_list[1]:
-            d += 1
-
-    # print((a,b,c,d))
-    return a, b, c, d
-
-
 def run_ffa(
     threshold: int,
     load: bool,
@@ -150,10 +125,8 @@ def run_ffa(
         ais = [ai_parent]
         for i, name in enumerate(ai_names):
             if i > 0:
-                ais.append(
-                    crossover(ai_parent, second_place, mutation_chance).mutate(
-                        mutation_chance
-                    )
+                ais[i] = crossover(ai_parent, second_place, mutation_chance).mutate(
+                    mutation_chance
                 )
             ais[i].export(name)
 
@@ -494,13 +467,11 @@ def run_robin(
                 break
 
             for game in games:
-                game_score = game.player_scores
-                game_time = game.elapsed_game_time
-                a, b = list(game_score.keys())
-                p1, p2 = (game_score[name] for name in (a, b))
-                x, y = extract_round_robin(p1, p2, game_time)
-                scores[a] += x
-                scores[b] += y
+                if (
+                    game.elapsed_game_time < 0.9 * game_settings.game_time_limit
+                    and game.winner
+                ):
+                    scores[game.names[game.winner - 1]] += 1
 
             score_list = sorted(list(scores.values()), reverse=True)
 
@@ -543,25 +514,6 @@ def run_robin(
         winner.save_to_file("best")
 
 
-class Outcome(StrEnum):
-    WIN = auto()
-    LOSS = auto()
-    DRAW = auto()
-
-
-@dataclass
-class GameResult:
-    outcome: Outcome
-    score: int
-    time: int
-    opponent: str = ""
-
-    def __str__(self) -> str:
-        return f"{self.outcome},{self.time},{self.score}" + (
-            f",{self.opponent}" if self.opponent else ""
-        )
-
-
 def benchmarker(
     ai1: str,
     ai2: str,
@@ -573,24 +525,19 @@ def benchmarker(
 ) -> int:
     game_settings = GameSettings(civilisations=civs, names=[ai1, ai2], **kwargs)
     launcher = Launcher(settings=game_settings)
-    stats: dict[str, list[GameResult]] = {name: [] for name in (ai1, ai2)}
+    stats: dict[str, list[PlayerResult]] = {name: [] for name in (ai1, ai2)}
     for _ in range(int(rounds / instances)):
         local_wins = 0
         for game in launcher.launch_games(instances):
             if not game.is_valid:
                 continue
-            game_time = game.elapsed_game_time
-            p1, p2 = game.scores
-            if game.winner == 0 or game_time >= 0.9 * game_settings.game_time_limit:
-                stats[ai1].append(GameResult(Outcome.DRAW, p1, game_time))
-                stats[ai2].append(GameResult(Outcome.DRAW, p2, game_time))
-            elif game.winner == 1:
+            for i, name in enumerate([ai1, ai2], 1):
+                stats[name].append(game.outcome(win_limit=0.9)[i])
+            if (
+                game.winner == 1
+                and game.elapsed_game_time < 0.9 * game_settings.game_time_limit
+            ):
                 local_wins += 1
-                stats[ai1].append(GameResult(Outcome.WIN, p1, game_time))
-                stats[ai2].append(GameResult(Outcome.LOSS, p2, game_time))
-            elif game.winner == 2:
-                stats[ai1].append(GameResult(Outcome.LOSS, p1, game_time))
-                stats[ai2].append(GameResult(Outcome.WIN, p2, game_time))
         if save_data:
             print(local_wins)
 
@@ -904,7 +851,7 @@ def get_ai_data(
     for name in group_list:
         elo_league.add_player(name, rating=1600)
 
-    stats: dict[str, list[GameResult]] = {name: [] for name in group_list}
+    stats: dict[str, list[PlayerResult]] = {name: [] for name in group_list}
     played: set[set[str]] = set()
     for name_1, name_2 in itertools.combinations(group_list, 2):
         print(name_1, name_2)
@@ -930,45 +877,14 @@ def get_ai_data(
         for game in launcher.launch_games(instances):
             if not game.is_valid:
                 continue
-            if game.elapsed_game_time >= 0.9 * game_time or game.winner == 0:
-                stats[name_1].append(
-                    GameResult(
-                        Outcome.DRAW,
-                        game.player_scores[name_1],
-                        game.elapsed_game_time,
-                        name_2,
-                    )
+            for i, name in enumerate(group_list, 1):
+                stats[name].append(game.outcome(win_limit=0.9, list_opponents=True)[i])
+            if game.elapsed_game_time < 0.9 * game_time and game.winner:
+                elo_league.game_over(
+                    winner=name_1 if game.winner == 1 else name_2,
+                    loser=name_2 if game.winner == 1 else name_1,
+                    winner_home=False,
                 )
-                stats[name_2].append(
-                    GameResult(
-                        Outcome.DRAW,
-                        game.player_scores[name_2],
-                        game.elapsed_game_time,
-                        name_1,
-                    )
-                )
-                continue
-            stats[name_1].append(
-                GameResult(
-                    Outcome.WIN if game.winner == 1 else Outcome.LOSS,
-                    game.player_scores[name_1],
-                    game.elapsed_game_time,
-                    name_2,
-                )
-            )
-            stats[name_2].append(
-                GameResult(
-                    Outcome.LOSS if game.winner == 1 else Outcome.WIN,
-                    game.player_scores[name_2],
-                    game.elapsed_game_time,
-                    name_1,
-                )
-            )
-            elo_league.game_over(
-                winner=name_1 if game.winner == 1 else name_2,
-                loser=name_2 if game.winner == 1 else name_1,
-                winner_home=False,
-            )
 
     print(elo_league.rating)
     print(stats)
@@ -993,7 +909,7 @@ def get_single_ai_data(
         elo_league.add_player(name, rating=dictionary[name])
     elo_league.add_player(ai, rating=1600)
 
-    stats: dict[str, list[GameResult]] = {ai: []}
+    stats: dict[str, list[PlayerResult]] = {ai: []}
     for name in group_list * runs:
         game_settings = GameSettings(
             civilisations=civs,
@@ -1011,18 +927,7 @@ def get_single_ai_data(
                     loser=name if game.winner == 1 else ai,
                     winner_home=False,
                 )
-            stats[ai].append(
-                GameResult(
-                    Outcome.WIN
-                    if game.winner == 1
-                    else Outcome.DRAW
-                    if game.winner == 0
-                    else Outcome.LOSS,
-                    game.player_scores[ai],
-                    game.elapsed_game_time,
-                    name,
-                )
-            )
+            stats[ai].append(game.outcome(list_opponents=True)[1])
     print(elo_league.rating)
     print(stats)
     with open("data.csv", "w", encoding="utf-8") as f:

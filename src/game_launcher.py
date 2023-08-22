@@ -1,13 +1,13 @@
 import asyncio
 import copy
 import datetime
-import enum
 import itertools
 import os
 import subprocess
 import time
 from ctypes import windll
 from dataclasses import dataclass, field
+from enum import Enum, StrEnum, auto
 from typing import Self, Sequence
 
 import msgpackrpc  # type: ignore
@@ -15,7 +15,7 @@ import msgpackrpc  # type: ignore
 from src.settings import CONFIG
 
 
-class GameSetting(enum.Enum):
+class GameSetting(Enum):
     @classmethod
     def _missing_(cls, value: object) -> Self:
         if isinstance(value, str):
@@ -194,7 +194,7 @@ class VictoryType(GameSetting):
         return cls.CONQUEST
 
 
-class GameStatus(enum.Enum):
+class GameStatus(Enum):
     NONE = "No status"  # If we read this there is probably something wrong.
     INIT = "Initialized"  # This means no process or RPC client has been launched.
     LAUNCHED = "Game process launched"  # The process exists, but not RPC client has been launched and connected.
@@ -315,6 +315,25 @@ class PlayerStats:
             f"Player {self.index} '{self.player.name}' ({self.player.civ})\n"
             f"\t\tScore: {self.score}\n"
             f"\t\tAlive: {self.alive}\n"
+        )
+
+
+class Outcome(StrEnum):
+    WIN = auto()
+    LOSS = auto()
+    DRAW = auto()
+
+
+@dataclass
+class PlayerResult:
+    outcome: Outcome
+    score: int
+    time: int
+    opponent: str = ""
+
+    def __str__(self) -> str:
+        return f"{self.outcome},{self.time},{self.score}" + (
+            f",{self.opponent}" if self.opponent else ""
         )
 
 
@@ -652,6 +671,12 @@ class Game:
         return self._stats.scores
 
     @property
+    def names(self) -> list[str]:
+        if not self._settings:
+            return []
+        return self._settings.names
+
+    @property
     def stats(self) -> dict[int, PlayerStats]:
         return self._stats.stats
 
@@ -666,6 +691,31 @@ class Game:
     @property
     def winner(self) -> int:
         return self._stats.winner
+
+    def outcome(
+        self, win_limit: float = 1, list_opponents: bool = False
+    ) -> dict[int, PlayerResult]:
+        if not self._settings:
+            return {}
+        return {
+            index: PlayerResult(
+                outcome=Outcome.DRAW
+                if self.winner == 0
+                or self.elapsed_game_time >= win_limit * self._settings.game_time_limit
+                else Outcome.WIN
+                if self.winner == index
+                else Outcome.LOSS,
+                score=result.score,
+                time=self.elapsed_game_time,
+                opponent=",".join(
+                    self._settings.names[: index - 1]
+                    + self._settings.names[index - 1 :]
+                )
+                if list_opponents
+                else "",
+            )
+            for index, result in self.stats.items()
+        }
 
     @property
     def is_running(self) -> bool:
@@ -705,7 +755,7 @@ class Launcher:
     def running_games(self) -> list[Game]:
         return [game for game in self.games if game.is_running]
 
-    def launch_games(self, instances: int = 1, round_robin: bool = False) -> list[Game]:
+    def create_games(self, instances: int = 1, round_robin: bool = False) -> None:
         all_settings = (
             [self.settings] * instances
             if not round_robin
@@ -721,12 +771,12 @@ class Launcher:
         asyncio.run(self._launch_games(), debug=self.debug)
         time.sleep(5.0)  # Make sure all games are launched.
         self._setup_rpc_clients()
-        asyncio.run(
-            self._apply_games_settings(settings=all_settings), debug=self.debug
-        )  # Apply settings to the games
-        time.sleep(2)
-        asyncio.run(self._start_games())
+        asyncio.run(self._apply_games_settings(settings=all_settings), debug=self.debug)
+        time.sleep(2)  # Make sure all settings are applied
 
+    def launch_games(self, instances: int = 1, round_robin: bool = False) -> list[Game]:
+        self.create_games(instances, round_robin)
+        asyncio.run(self._start_games())
         any_game_running = True
         while any_game_running:
             asyncio.run(self.update_games())
