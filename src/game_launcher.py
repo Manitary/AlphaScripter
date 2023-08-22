@@ -13,7 +13,8 @@ from typing import Self, Sequence
 
 import msgpackrpc
 
-from src import settings
+from src.settings import CONFIG
+
 
 DEFAULT_GAME_PATH = (
     "C:\\Program Files\\Microsoft Games\\age of empires ii\\Age2_x1\\age2_x1.exe"
@@ -227,7 +228,7 @@ class GameSettings:
         reveal_map: str | int | RevealMap = RevealMap.default(),
         starting_age: str | int | StartingAge = StartingAge.default(),
         victory_type: str | int | VictoryType = VictoryType.default(),
-        game_time_limit: int = settings.game_time,
+        game_time_limit: int = CONFIG.game_time,
         speed: bool = True,
     ) -> None:
         civilisations = list(civilisations) if civilisations else []
