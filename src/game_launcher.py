@@ -6,7 +6,6 @@ import itertools
 import os
 import subprocess
 import time
-from abc import ABC, abstractmethod
 from ctypes import windll
 from dataclasses import dataclass, field
 from typing import Self, Sequence
@@ -21,7 +20,7 @@ DEFAULT_GAME_PATH = (
 )
 
 
-class GameSetting(enum.Enum, ABC):
+class GameSetting(enum.Enum):
     @classmethod
     def _missing_(cls, value: object) -> Self:
         if isinstance(value, str):
@@ -39,9 +38,8 @@ class GameSetting(enum.Enum, ABC):
         return default
 
     @classmethod
-    @abstractmethod
     def default(cls) -> Self:
-        ...
+        raise NotImplementedError()
 
 
 class Civilisation(GameSetting):
