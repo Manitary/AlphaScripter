@@ -10,7 +10,7 @@ from ctypes import windll
 from dataclasses import dataclass, field
 from typing import Self, Sequence
 
-import msgpackrpc
+import msgpackrpc  # type: ignore
 
 from src.settings import CONFIG
 
@@ -124,7 +124,7 @@ class MapSize(GameSetting):
 
     @classmethod
     def default(cls) -> Self:
-        return cls.MEDIUM
+        return cls.TINY
 
 
 class Difficulty(GameSetting):

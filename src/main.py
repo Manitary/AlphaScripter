@@ -16,6 +16,7 @@ from src.settings import CONFIG
 
 AI_NAMES = ("parent", "b", "c", "d", "e", "f", "g", "h")
 
+
 def setup_ai_files() -> None:
     for ai in AI_NAMES:
         with open(f"{ai}.ai", "w+", encoding="utf-8") as f:
@@ -49,13 +50,18 @@ def extract_round_robin(
     return 0, 0
 
 
-def create_seeds(threshold: int, civ: str = CONFIG.civ) -> AI:
+def create_seeds(
+    threshold: int,
+    civ: str = CONFIG.civ,
+    map_size: MapSize = MapSize.MEDIUM,
+    **kwargs: Any,
+) -> AI:
     while True:
         game_settings = GameSettings(
             civilisations=[civ] * 4,
             names=["parent", "parent"],
-            game_time_limit=CONFIG.game_time,
-            map_id="arabia",
+            map_size=map_size,
+            **kwargs,
         )
 
         master_score_list = [[0, 0, 0, 0, 0, 0, 0, 0]]
@@ -119,6 +125,7 @@ def run_ffa(
     anneal_amount: int = CONFIG.anneal_amount,
     fails_before_reset: int = CONFIG.fails_before_reset,
     ai_names: Sequence[str] = AI_NAMES,
+    map_size: MapSize = MapSize.MEDIUM,
     game_time_limit: int = 5000,
     **kwargs: Any,
 ) -> None:
@@ -135,6 +142,7 @@ def run_ffa(
         names=list(ai_names),
         civilisations=[Civilisation.default()] * len(ai_names),
         game_time_limit=game_time_limit,
+        map_size=map_size,
         **kwargs,
     )
     launcher = Launcher(
@@ -241,7 +249,6 @@ def run_vs(
     ai_names: Sequence[str] = AI_NAMES[:2],
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     instances: int = 7,
     **kwargs: Any,
 ) -> None:
@@ -253,7 +260,6 @@ def run_vs(
     game_settings = GameSettings(
         civilisations=[Civilisation.default()] * len(ai_names),
         names=list(ai_names),
-        map_size=map_size,
         **kwargs,
     )
     launcher = Launcher(
@@ -299,7 +305,6 @@ def run_vs_other(
     infinite: bool,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     instances: int = 7,
     **kwargs: Any,
 ) -> None:
@@ -310,9 +315,7 @@ def run_vs_other(
 
     second_place = copy.deepcopy(ai_parent)
 
-    game_settings = GameSettings(
-        civilisations=civs, names=["b", trainer], map_size=map_size, **kwargs
-    )
+    game_settings = GameSettings(civilisations=civs, names=["b", trainer], **kwargs)
     launcher = Launcher(
         executable_path=CONFIG.executable_path,
         settings=game_settings,
@@ -375,7 +378,6 @@ def run_vs_self(
     infinite: bool,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     instances: int = 7,
     **kwargs: Any,
 ) -> None:
@@ -387,7 +389,6 @@ def run_vs_self(
     game_settings = GameSettings(
         civilisations=[Civilisation.default()] * 2,
         names=["b", "self"],
-        map_size=map_size,
         **kwargs,
     )
     launcher = Launcher(
@@ -460,7 +461,6 @@ def run_robin(
     ai_names: Sequence[str] = AI_NAMES[:4],
     default_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     **kwargs: Any,
 ) -> None:
     if iterations < 1:
@@ -471,7 +471,6 @@ def run_robin(
     game_settings = GameSettings(
         civilisations=[Civilisation.default()] * len(ai_names),
         names=list(ai_names),
-        map_size=map_size,
         **kwargs,
     )
     launcher = Launcher(
@@ -583,13 +582,10 @@ def benchmarker(
     rounds: int,
     civs: list[str],
     instances: int = 7,
-    map_size: MapSize = MapSize.TINY,
     save_data: bool = True,
     **kwargs: Any,
 ) -> int:
-    game_settings = GameSettings(
-        civilisations=civs, names=[ai1, ai2], map_size=map_size, **kwargs
-    )
+    game_settings = GameSettings(civilisations=civs, names=[ai1, ai2], **kwargs)
     launcher = Launcher(
         executable_path=CONFIG.executable_path,
         settings=game_settings,
@@ -658,7 +654,6 @@ def group_train(
     robustness: int,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     game_time: int = 6000,
     instances: int = 7,
     **kwargs: Any,
@@ -690,7 +685,6 @@ def group_train(
             game_settings = GameSettings(
                 civilisations=[Civilisation.default()] * 2,
                 names=["b", name],
-                map_size=map_size,
                 game_time_limit=game_time,
                 **kwargs,
             )
@@ -765,7 +759,6 @@ def speed_train(
     trainer: str,
     base_mutation_chance: float = 0.01,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     game_time: float = 7200,
     instances: int = 10,
     **kwargs: Any,
@@ -793,7 +786,6 @@ def speed_train(
         game_settings = GameSettings(
             civilisations=[Civilisation.default()] * 2,
             names=["b", trainer],
-            map_size=map_size,
             game_time_limit=int(game_time),
             **kwargs,
         )
@@ -839,7 +831,6 @@ def run_elo_once(
     elo_dict: dict[str, float],
     group_list: list[str],
     instances: int = 7,
-    map_size: MapSize = MapSize.TINY,
     game_time: int = 7200,
     **kwargs: Any,
 ) -> float:
@@ -855,7 +846,6 @@ def run_elo_once(
         game_settings = GameSettings(
             civilisations=[Civilisation.default()] * 2,
             names=[ai, name],
-            map_size=map_size,
             game_time_limit=game_time,
             **kwargs,
         )
@@ -932,7 +922,6 @@ def get_ai_data(
     group_list: list[str],
     instances: int = 7,
     game_time: int = 7200,
-    map_size: MapSize = MapSize.TINY,
     **kwargs: Any,
 ) -> None:
     elo_league = Elo(k=20, g=1)
@@ -957,7 +946,6 @@ def get_ai_data(
         game_settings = GameSettings(
             civilisations=[Civilisation.default()] * 2,
             names=[name_1, name_2],
-            map_size=map_size,
             game_time_limit=game_time,
             **kwargs,
         )
@@ -1037,7 +1025,6 @@ def get_single_ai_data(
         game_settings = GameSettings(
             civilisations=civs,
             names=[ai, name],
-            map_size="tiny",
             game_time_limit=game_time,
         )
         launcher = Launcher(
@@ -1107,7 +1094,6 @@ def run_vs_other_slow(
     infinite: bool,
     default_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     game_time: int = 3600,
     **kwargs: Any,
 ) -> None:
@@ -1121,7 +1107,6 @@ def run_vs_other_slow(
     game_settings = GameSettings(
         civilisations=civs,
         names=["b", trainer],
-        map_size=map_size,
         game_time_limit=game_time,
         speed=False,
         **kwargs,
@@ -1218,7 +1203,6 @@ def run_vs_self_slow(
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
     game_time: int = 3600,
-    map_size: MapSize = MapSize.TINY,
     **kwargs: Any,
 ) -> None:
     if load:
@@ -1231,7 +1215,6 @@ def run_vs_self_slow(
     game_settings = GameSettings(
         civilisations=[Civilisation.default()] * 2,
         names=["b", "self"],
-        map_size=map_size,
         game_time_limit=game_time,
         speed=False,
         **kwargs,
@@ -1305,7 +1288,6 @@ def run_vs_self_slow2(
     instances: int = 30,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     **kwargs: Any,
 ) -> None:
     if load:
@@ -1316,7 +1298,6 @@ def run_vs_self_slow2(
     game_settings = GameSettings(
         civilisations=[Civilisation.default()] * 2,
         names=["b", "self"],
-        map_size=map_size,
         speed=False,
         **kwargs,
     )
@@ -1400,7 +1381,6 @@ def run_vs_selfs(
     instances: int = 7,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
-    map_size: MapSize = MapSize.TINY,
     **kwargs: Any,
 ) -> None:
     if load:
@@ -1436,9 +1416,7 @@ def run_vs_selfs(
         b.export("b")
         real_wins = 0
         game_settings = GameSettings(
-            civilisations=[Civilisation.default()] * 2,
-            names=["b", "king"],
-            map_size=map_size,
+            civilisations=[Civilisation.default()] * 2, names=["b", "king"], **kwargs
         )
         launcher = Launcher(
             executable_path=CONFIG.executable_path,
@@ -1459,7 +1437,6 @@ def run_vs_selfs(
             game_settings = GameSettings(
                 civilisations=[Civilisation.default()] * 2,
                 names=["b", name],
-                map_size=map_size,
                 **kwargs,
             )
             launcher = Launcher(
