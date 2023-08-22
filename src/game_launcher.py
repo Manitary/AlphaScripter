@@ -15,11 +15,6 @@ import msgpackrpc  # type: ignore
 from src.settings import CONFIG
 
 
-DEFAULT_GAME_PATH = (
-    "C:\\Program Files\\Microsoft Games\\age of empires ii\\Age2_x1\\age2_x1.exe"
-)
-
-
 class GameSetting(enum.Enum):
     @classmethod
     def _missing_(cls, value: object) -> Self:
@@ -683,7 +678,7 @@ class Launcher:
     def __init__(
         self,
         settings: GameSettings,
-        executable_path: str = DEFAULT_GAME_PATH,
+        executable_path: str = CONFIG.executable_path,
         debug: bool = False,
     ) -> None:
         self.executable_path = executable_path

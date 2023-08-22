@@ -63,16 +63,13 @@ def create_seeds(
             map_size=map_size,
             **kwargs,
         )
+        launcher = Launcher(settings=game_settings)
 
         master_score_list = [[0, 0, 0, 0, 0, 0, 0, 0]]
         # print("reset")
         ai_parent = AI.generate()
         ai_parent.export("parent")
 
-        launcher = Launcher(
-            executable_path=CONFIG.executable_path,
-            settings=game_settings,
-        )
         master_score_list = [
             game.scores for game in launcher.launch_games(instances=1) if game.is_valid
         ]
@@ -146,10 +143,7 @@ def run_ffa(
         map_size=map_size,
         **kwargs,
     )
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
 
     while True:
         generation += 1
@@ -265,10 +259,7 @@ def run_vs(
         names=list(ai_names),
         **kwargs,
     )
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
 
     fails = 0
     winner = copy.deepcopy(ai_parent)
@@ -319,10 +310,7 @@ def run_vs_other(
     second_place = copy.deepcopy(ai_parent)
 
     game_settings = GameSettings(civilisations=civs, names=["b", trainer], **kwargs)
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
 
     mutation_chance = base_mutation_chance
     fails = 0
@@ -395,10 +383,7 @@ def run_vs_self(
         names=["b", "self"],
         **kwargs,
     )
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
 
     fails = 0
     generation = 0
@@ -477,10 +462,7 @@ def run_robin(
         names=list(ai_names),
         **kwargs,
     )
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
 
     winner = None
     fails = 0
@@ -590,10 +572,7 @@ def benchmarker(
     **kwargs: Any,
 ) -> int:
     game_settings = GameSettings(civilisations=civs, names=[ai1, ai2], **kwargs)
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
     stats: dict[str, list[GameResult]] = {name: [] for name in (ai1, ai2)}
     for _ in range(int(rounds / instances)):
         local_wins = 0
@@ -693,10 +672,7 @@ def group_train(
                 game_time_limit=game_time,
                 **kwargs,
             )
-            launcher = Launcher(
-                executable_path=CONFIG.executable_path,
-                settings=game_settings,
-            )
+            launcher = Launcher(settings=game_settings)
             real_wins = sum(
                 1
                 for game in launcher.launch_games(instances)
@@ -794,10 +770,7 @@ def speed_train(
             game_time_limit=int(game_time),
             **kwargs,
         )
-        launcher = Launcher(
-            executable_path=CONFIG.executable_path,
-            settings=game_settings,
-        )
+        launcher = Launcher(settings=game_settings)
 
         games = [game for game in launcher.launch_games(instances) if game.is_valid]
         real_wins = sum(1 for game in games if game.winner == 1)
@@ -855,10 +828,7 @@ def run_elo_once(
             game_time_limit=game_time,
             **kwargs,
         )
-        launcher = Launcher(
-            executable_path=CONFIG.executable_path,
-            settings=game_settings,
-        )
+        launcher = Launcher(settings=game_settings)
 
         games = [game for game in launcher.launch_games(instances) if game.is_valid]
         wins = 0
@@ -955,10 +925,7 @@ def get_ai_data(
             game_time_limit=game_time,
             **kwargs,
         )
-        launcher = Launcher(
-            executable_path=CONFIG.executable_path,
-            settings=game_settings,
-        )
+        launcher = Launcher(settings=game_settings)
 
         for game in launcher.launch_games(instances):
             if not game.is_valid:
@@ -1033,10 +1000,7 @@ def get_single_ai_data(
             names=[ai, name],
             game_time_limit=game_time,
         )
-        launcher = Launcher(
-            executable_path=CONFIG.executable_path,
-            settings=game_settings,
-        )
+        launcher = Launcher(settings=game_settings)
 
         for game in launcher.launch_games(instances):
             if not game.is_valid:
@@ -1117,10 +1081,7 @@ def run_vs_other_slow(
         speed=False,
         **kwargs,
     )
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
 
     fails = 0
     generation = 0
@@ -1225,10 +1186,7 @@ def run_vs_self_slow(
         speed=False,
         **kwargs,
     )
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
 
     fails = 0
     generation = 0
@@ -1308,10 +1266,7 @@ def run_vs_self_slow2(
         speed=False,
         **kwargs,
     )
-    launcher = Launcher(
-        executable_path=CONFIG.executable_path,
-        settings=game_settings,
-    )
+    launcher = Launcher(settings=game_settings)
 
     fails = 0
     generation = 0
@@ -1426,10 +1381,7 @@ def run_vs_selfs(
         game_settings = GameSettings(
             civilisations=[Civilisation(civ)] * 2, names=["b", "king"], **kwargs
         )
-        launcher = Launcher(
-            executable_path=CONFIG.executable_path,
-            settings=game_settings,
-        )
+        launcher = Launcher(settings=game_settings)
 
         test_wins = sum(
             1
@@ -1447,10 +1399,7 @@ def run_vs_selfs(
                 names=["b", name],
                 **kwargs,
             )
-            launcher = Launcher(
-                executable_path=CONFIG.executable_path,
-                settings=game_settings,
-            )
+            launcher = Launcher(settings=game_settings)
             if (i + 1) % len(group_list) == 0:
                 sets_run += 1
             real_wins += sum(
