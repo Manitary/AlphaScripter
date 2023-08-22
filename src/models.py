@@ -8,7 +8,7 @@ from collections import UserDict
 from dataclasses import dataclass, field
 from typing import Self
 
-import settings
+from src.config import CONFIG
 from src.globals import (
     ACTIONS,
     BUILDABLE,
@@ -22,7 +22,7 @@ from src.globals import (
     TRAINABLE,
 )
 
-if settings.allow_towers:
+if CONFIG.allow_towers:
     PARAMETERS["Buildable"] += ";watch-tower;guard-tower;keep"
 
 with open("resign.txt", "r", encoding="utf-8") as r:
@@ -314,8 +314,8 @@ class ComplexRule(Mutable):
 
     @classmethod
     def generate(cls) -> Self:
-        fact_length = random.randint(1, settings.max_fact_length)
-        action_length = random.randint(1, settings.max_action_length)
+        fact_length = random.randint(1, CONFIG.max_fact_length)
+        action_length = random.randint(1, CONFIG.max_action_length)
         # age_required = random.choice(
         #     [
         #         [
@@ -333,8 +333,8 @@ class ComplexRule(Mutable):
         #     ]
         # )
         age_required = ["", ""]
-        local_facts = [Fact.generate() for _ in range(settings.max_fact_length)]
-        local_actions = [Action.generate() for _ in range(settings.max_fact_length)]
+        local_facts = [Fact.generate() for _ in range(CONFIG.max_fact_length)]
+        local_actions = [Action.generate() for _ in range(CONFIG.max_fact_length)]
 
         return ComplexRule(
             fact_length, action_length, age_required, local_facts, local_actions
@@ -346,9 +346,9 @@ class ComplexRule(Mutable):
 
         rule = self if in_place else copy.deepcopy(self)
         if random.random() < mutation_chance:
-            rule.fact_length = random.randint(1, settings.max_fact_length)
+            rule.fact_length = random.randint(1, CONFIG.max_fact_length)
         if random.random() < mutation_chance:
-            rule.action_length = random.randint(1, settings.max_action_length)
+            rule.action_length = random.randint(1, CONFIG.max_action_length)
         if random.random() < mutation_chance:
             rule.age_required = random.choice(
                 [
@@ -504,7 +504,7 @@ class SimpleRule(Mutable):
         strategic_numbers = StrategicNumbers.generate()
         threshold = random.randint(0, 200)
         if (
-            settings.force_castle_age_units
+            CONFIG.force_castle_age_units
             and params["Trainable"] != "villager"
             and simple_type == "train"
         ):
@@ -561,7 +561,7 @@ class SimpleRule(Mutable):
     def mutate(self, mutation_chance: float, in_place: bool = False) -> Self:
         simple = self if in_place else copy.deepcopy(self)
         if random.random() < mutation_chance:
-            if settings.allow_units:
+            if CONFIG.allow_units:
                 simple.type = random.choice(
                     ["train", "research", "strategic_number", "build", "build-forward"]
                 )
@@ -580,7 +580,7 @@ class SimpleRule(Mutable):
                 simple.threshold += random.randint(-10, 10)
 
         if (
-            settings.force_castle_age_units
+            CONFIG.force_castle_age_units
             and simple.parameters["Trainable"] != "villager"
             and simple.type == "train"
         ):
@@ -1426,7 +1426,7 @@ class AI(Mutable):
     @classmethod
     def generate(cls) -> Self:
         simple_list: list[SimpleRule] = []
-        if settings.villager_preset:
+        if CONFIG.villager_preset:
             # build villagers
             temp = SimpleRule.generate()
             temp.type = "train"
@@ -1444,20 +1444,14 @@ class AI(Mutable):
 
             simple_list.append(temp)
 
-        simple_list.extend(
-            [SimpleRule.generate() for _ in range(settings.simple_count)]
-        )
+        simple_list.extend([SimpleRule.generate() for _ in range(CONFIG.simple_count)])
 
-        ai = [ComplexRule.generate() for _ in range(settings.ai_length)]
-        attack_rules = [
-            AttackRule.generate() for _ in range(settings.attack_rule_count)
-        ]
-        duc_search = [DUCSearch.generate() for _ in range(settings.DUC_count)]
-        duc_target = [DUCTarget.generate() for _ in range(settings.DUC_count)]
-        goal_rules = [Goal.generate() for _ in range(settings.goal_rule_count)]
-        goal_actions = [
-            GoalAction.generate() for _ in range(settings.goal_action_count)
-        ]
+        ai = [ComplexRule.generate() for _ in range(CONFIG.ai_length)]
+        attack_rules = [AttackRule.generate() for _ in range(CONFIG.attack_rule_count)]
+        duc_search = [DUCSearch.generate() for _ in range(CONFIG.duc_count)]
+        duc_target = [DUCTarget.generate() for _ in range(CONFIG.duc_count)]
+        goal_rules = [Goal.generate() for _ in range(CONFIG.goal_rule_count)]
+        goal_actions = [GoalAction.generate() for _ in range(CONFIG.goal_action_count)]
 
         return AI(
             simple_list,
@@ -1476,7 +1470,7 @@ class AI(Mutable):
             ai.simples = [simple.mutate(mutation_chance) for simple in ai.simples]
 
             new_rules: list[ComplexRule] = []
-            if settings.allow_complex:
+            if CONFIG.allow_complex:
                 for simple in ai.simples:
                     if random.random() < mutation_chance / 2:
                         new_rules.append(simple.to_complex())
@@ -1589,7 +1583,7 @@ class AI(Mutable):
             "(defrule\n(true)\n=>\n(set-strategic-number sn-cap-civilian-explorers 0)\n"
             "(set-strategic-number sn-initial-exploration-required 10)\n(disable-self))\n\n"
         )
-        if settings.force_house:
+        if CONFIG.force_house:
             default_ai += (
                 "(defrule\n"
                 "(building-type-count-total town-center > 0)\n"
@@ -1599,16 +1593,16 @@ class AI(Mutable):
                 "=>\n(build house))\n\n"
             )
 
-        if settings.force_age_up:
+        if CONFIG.force_age_up:
             default_ai += (
                 "(defrule\n(true)\n=>\n(research 101))\n"
                 "(defrule\n(true)\n=>\n(research 102))\n\n"
             )
 
-        if settings.force_imperial_age:
+        if CONFIG.force_imperial_age:
             default_ai += "(defrule\n(true)\n=>\n(research 103))\n"
 
-        if settings.force_barracks:
+        if CONFIG.force_barracks:
             default_ai += (
                 "(defrule\n"
                 "(can-build barracks)\n"
@@ -1616,7 +1610,7 @@ class AI(Mutable):
                 "=>\n(build barracks)\n)\n\n"
             )
 
-        if settings.force_resign:
+        if CONFIG.force_resign:
             default_ai += "\n" + RESIGN_RULE + "\n"
             # ans += (
             #     "(defrule\n"
@@ -1629,7 +1623,7 @@ class AI(Mutable):
             #     "=>\n\t(resign)\n\t(disable-self))\n\n"
             # )
 
-        if settings.force_scout:
+        if CONFIG.force_scout:
             default_ai += (
                 "\n(defrule\n(true)\n"
                 "=>\n\t(set-strategic-number sn-total-number-explorers 1)"
@@ -1638,7 +1632,7 @@ class AI(Mutable):
                 "\n\t(disable-self)\n)\n\n"
             )
 
-        with open(settings.local_drive + ai_name + ".per", "w", encoding="utf-8") as f:
+        with open(CONFIG.local_drive + ai_name + ".per", "w", encoding="utf-8") as f:
             f.write(default_ai)
             for rule in self.goal_rules:
                 f.write(rule.write())
@@ -1646,14 +1640,14 @@ class AI(Mutable):
                 f.write(simple.write())
             for goal_action in self.goal_actions:
                 f.write(goal_action.write())
-            if settings.allow_attack_rules:
+            if CONFIG.allow_attack_rules:
                 for attack_rule in self.attack_rules:
                     f.write(attack_rule.write())
-            if settings.allow_DUC:
+            if CONFIG.allow_duc:
                 for search, target in zip(self.duc_search, self.duc_target):
                     f.write(search.write())
                     f.write(target.write())
-            if settings.allow_complex:
+            if CONFIG.allow_complex:
                 for rule in self.rules:
                     f.write(rule.write())
 

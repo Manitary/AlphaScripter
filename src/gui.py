@@ -1,6 +1,6 @@
 import tkinter as tk
 
-import settings
+from src.config import CONFIG
 from src import main as m
 from src.models import AI
 
@@ -44,7 +44,7 @@ def create_app() -> tk.Tk:
             0,
             True,
             input_txt.get(1.0, "end-1c"),
-            [settings.civ, settings.civ],
+            [CONFIG.civ, CONFIG.civ],
             int(input_txt_2.get(1.0, "end-1c")),
             True,
         ),
@@ -58,7 +58,7 @@ def create_app() -> tk.Tk:
             0,
             True,
             input_txt.get(1.0, "end-1c"),
-            [settings.civ, "huns"],
+            [CONFIG.civ, "huns"],
             int(input_txt_2.get(1.0, "end-1c")),
             False,
         ),
@@ -80,7 +80,7 @@ def create_app() -> tk.Tk:
         root,
         text="Benchmark",
         command=lambda: m.benchmarker(
-            "best", input_txt.get(1.0, "end-1c"), 100, [settings.civ, "huns"]
+            "best", input_txt.get(1.0, "end-1c"), 100, [CONFIG.civ, "huns"]
         ),
     )
     button1.pack()
@@ -89,7 +89,7 @@ def create_app() -> tk.Tk:
         root,
         text="Ladder",
         command=lambda: m.group_train(
-            settings.ai_ladder, True, int(input_txt_2.get(1.0, "end-1c"))
+            CONFIG.ai_ladder, True, int(input_txt_2.get(1.0, "end-1c"))
         ),
     )
     button1.pack()

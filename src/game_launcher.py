@@ -12,7 +12,7 @@ from typing import Self, Sequence
 
 import msgpackrpc  # type: ignore
 
-from src.settings import CONFIG
+from src.config import CONFIG
 
 
 class GameSetting(Enum):

@@ -17,7 +17,7 @@ from src.game_launcher import (
     PlayerResult,
 )
 from src.models import AI
-from src.settings import CONFIG
+from src.config import CONFIG
 
 AI_NAMES = ("parent", "b", "c", "d", "e", "f", "g", "h")
 

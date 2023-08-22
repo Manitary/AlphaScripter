@@ -40,11 +40,11 @@ class Config:
     allow_units: bool
     allow_towers: bool
     force_resign: bool = field(init=False)
-    allow_attack_rule: bool = field(init=False)
+    allow_attack_rules: bool = field(init=False)
 
     def __post_init__(self) -> None:
         self.force_resign = not self.restart
-        self.allow_attack_rule = not self.restart
+        self.allow_attack_rules = not self.restart
 
 
 with open("config.yaml", encoding="utf-8") as f:
