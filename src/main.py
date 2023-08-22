@@ -58,7 +58,7 @@ def create_seeds(
 ) -> AI:
     while True:
         game_settings = GameSettings(
-            civilisations=[civ] * 4,
+            civilisations=[Civilisation(civ)] * 4,
             names=["parent", "parent"],
             map_size=map_size,
             **kwargs,
@@ -121,6 +121,7 @@ def extract_ffa(master_score: list[list[int]]) -> tuple[int, int, int, int]:
 def run_ffa(
     threshold: int,
     load: bool,
+    civ: str = CONFIG.civ,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
     fails_before_reset: int = CONFIG.fails_before_reset,
@@ -140,7 +141,7 @@ def run_ffa(
     mutation_chance = base_mutation_chance
     game_settings = GameSettings(
         names=list(ai_names),
-        civilisations=[Civilisation.default()] * len(ai_names),
+        civilisations=[Civilisation(civ)] * len(ai_names),
         game_time_limit=game_time_limit,
         map_size=map_size,
         **kwargs,
@@ -221,6 +222,7 @@ def run_ffa(
 def run_ffa_four(
     threshold: int,
     load: bool,
+    civ: str = CONFIG.civ,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
     fails_before_reset: int = CONFIG.fails_before_reset,
@@ -232,6 +234,7 @@ def run_ffa_four(
     return run_ffa(
         threshold=threshold,
         load=load,
+        civ=civ,
         base_mutation_chance=base_mutation_chance,
         anneal_amount=anneal_amount,
         fails_before_reset=fails_before_reset,
@@ -376,6 +379,7 @@ def run_vs_self(
     load: bool,
     robustness: int,
     infinite: bool,
+    civ: str = CONFIG.civ,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
     instances: int = 7,
@@ -387,7 +391,7 @@ def run_vs_self(
         ai_parent = create_seeds(threshold)
 
     game_settings = GameSettings(
-        civilisations=[Civilisation.default()] * 2,
+        civilisations=[Civilisation(civ)] * 2,
         names=["b", "self"],
         **kwargs,
     )
@@ -652,6 +656,7 @@ def group_train(
     group_list: list[str],
     do_break: bool,
     robustness: int,
+    civ: str = CONFIG.civ,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
     game_time: int = 6000,
@@ -683,7 +688,7 @@ def group_train(
 
         for i, name in enumerate(group_list * robustness):
             game_settings = GameSettings(
-                civilisations=[Civilisation.default()] * 2,
+                civilisations=[Civilisation(civ), Civilisation.default()],
                 names=["b", name],
                 game_time_limit=game_time,
                 **kwargs,
@@ -830,6 +835,7 @@ def run_elo_once(
     ai: str,
     elo_dict: dict[str, float],
     group_list: list[str],
+    civ: str = CONFIG.civ,
     instances: int = 7,
     game_time: int = 7200,
     **kwargs: Any,
@@ -844,7 +850,7 @@ def run_elo_once(
             continue
         played.add(name)
         game_settings = GameSettings(
-            civilisations=[Civilisation.default()] * 2,
+            civilisations=[Civilisation(civ), Civilisation.default()],
             names=[ai, name],
             game_time_limit=game_time,
             **kwargs,
@@ -1285,6 +1291,7 @@ def run_vs_self_slow2(
     load: bool,
     robustness: int,
     infinite: bool,
+    civ: str = CONFIG.civ,
     instances: int = 30,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
@@ -1296,7 +1303,7 @@ def run_vs_self_slow2(
         ai_parent = create_seeds(threshold)
 
     game_settings = GameSettings(
-        civilisations=[Civilisation.default()] * 2,
+        civilisations=[Civilisation(civ)] * 2,
         names=["b", "self"],
         speed=False,
         **kwargs,
@@ -1378,6 +1385,7 @@ def run_vs_selfs(
     load: bool,
     robustness: int,
     infinite: bool,
+    civ: str = CONFIG.civ,
     instances: int = 7,
     base_mutation_chance: float = CONFIG.default_mutation_chance,
     anneal_amount: int = CONFIG.anneal_amount,
@@ -1416,7 +1424,7 @@ def run_vs_selfs(
         b.export("b")
         real_wins = 0
         game_settings = GameSettings(
-            civilisations=[Civilisation.default()] * 2, names=["b", "king"], **kwargs
+            civilisations=[Civilisation(civ)] * 2, names=["b", "king"], **kwargs
         )
         launcher = Launcher(
             executable_path=CONFIG.executable_path,
@@ -1435,7 +1443,7 @@ def run_vs_selfs(
         sets_run = 1
         for i, name in enumerate(group_list * robustness):
             game_settings = GameSettings(
-                civilisations=[Civilisation.default()] * 2,
+                civilisations=[Civilisation(civ)] * 2,
                 names=["b", name],
                 **kwargs,
             )
