@@ -41,20 +41,6 @@ def set_annealing(
         0.001,
     )
 
-
-# changed so only real wins count
-def extract_round_robin(
-    p1: int, p2: int, game_time: int, max_game_time: int = CONFIG.game_time
-) -> tuple[int, int]:
-    if game_time > 0.9 * max_game_time:
-        return 0, 0
-    if p1 > p2:
-        return 1, 0
-    if p2 > p1:
-        return 0, 1
-    return 0, 0
-
-
 def create_seeds(
     threshold: int,
     civ: str = CONFIG.civ,
