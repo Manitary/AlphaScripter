@@ -14,7 +14,7 @@ from src.game_launcher import (
     Launcher,
     MapSize,
     Outcome,
-    PlayerResult,
+    PlayerStats,
 )
 from src.models import AI
 from src.config import CONFIG
@@ -525,14 +525,14 @@ def benchmarker(
 ) -> int:
     game_settings = GameSettings(civilisations=civs, names=[ai1, ai2], **kwargs)
     launcher = Launcher(settings=game_settings)
-    stats: dict[str, list[PlayerResult]] = {name: [] for name in (ai1, ai2)}
+    stats: dict[str, list[PlayerStats]] = {name: [] for name in (ai1, ai2)}
     for _ in range(int(rounds / instances)):
         local_wins = 0
         for game in launcher.launch_games(instances):
             if not game.is_valid:
                 continue
             for i, name in enumerate([ai1, ai2], 1):
-                stats[name].append(game.outcome(win_limit=0.9)[i])
+                stats[name].append(game.outcome_time_limited(win_limit=0.9)[i])
             if (
                 game.winner == 1
                 and game.elapsed_game_time < 0.9 * game_settings.game_time_limit
@@ -555,7 +555,7 @@ def benchmarker(
             f.write("AI,result,game time,score\n")
             for name, results in stats.items():
                 for result in results:
-                    f.write(f"{name},{result}\n")
+                    f.write(f"{name},{result.write()}\n")
 
     return ai1_wins
 
@@ -851,7 +851,7 @@ def get_ai_data(
     for name in group_list:
         elo_league.add_player(name, rating=1600)
 
-    stats: dict[str, list[PlayerResult]] = {name: [] for name in group_list}
+    stats: dict[str, list[PlayerStats]] = {name: [] for name in group_list}
     played: set[set[str]] = set()
     for name_1, name_2 in itertools.combinations(group_list, 2):
         print(name_1, name_2)
@@ -878,7 +878,7 @@ def get_ai_data(
             if not game.is_valid:
                 continue
             for i, name in enumerate(group_list, 1):
-                stats[name].append(game.outcome(win_limit=0.9, list_opponents=True)[i])
+                stats[name].append(game.outcome_time_limited(win_limit=0.9)[i])
             if game.elapsed_game_time < 0.9 * game_time and game.winner:
                 elo_league.game_over(
                     winner=name_1 if game.winner == 1 else name_2,
@@ -892,7 +892,9 @@ def get_ai_data(
         f.write("AI,elo,result,game time,score,opponent\n")
         for name, results in stats.items():
             for result in results:
-                f.write(f"{name},{elo_league.rating[name]},{result}\n")
+                f.write(
+                    f"{name},{elo_league.rating[name]},{result.write(write_opponents=True)}\n"
+                )
 
 
 def get_single_ai_data(
@@ -909,7 +911,7 @@ def get_single_ai_data(
         elo_league.add_player(name, rating=dictionary[name])
     elo_league.add_player(ai, rating=1600)
 
-    stats: dict[str, list[PlayerResult]] = {ai: []}
+    stats: dict[str, list[PlayerStats]] = {ai: []}
     for name in group_list * runs:
         game_settings = GameSettings(
             civilisations=civs,
@@ -927,14 +929,16 @@ def get_single_ai_data(
                     loser=name if game.winner == 1 else ai,
                     winner_home=False,
                 )
-            stats[ai].append(game.outcome(list_opponents=True)[1])
+            stats[ai].append(game.outcome[1])
     print(elo_league.rating)
     print(stats)
     with open("data.csv", "w", encoding="utf-8") as f:
         f.write("AI,elo,result,game time,score,opponent\n")
         for name, results in stats.items():
             for result in results:
-                f.write(f"{name},{elo_league.rating[name]},{result}\n")
+                f.write(
+                    f"{name},{elo_league.rating[name]},{result.write(write_opponents=True)}\n"
+                )
 
 
 def benchmarker_slow(

@@ -62,6 +62,9 @@ class Civilisation(GameSetting):
     def default(cls) -> Self:
         return cls.HUNS
 
+    def __str__(self) -> str:
+        return self.name.lower()
+
 
 class Map(GameSetting):
     ARABIA = 21
@@ -287,20 +290,44 @@ class Player:
     civ: Civilisation
 
 
+class Outcome(StrEnum):
+    WIN = auto()
+    LOSS = auto()
+    DRAW = auto()
+
+
 @dataclass
 class PlayerStats:
-    player: Player
-    index: int
+    _player: Player
+    _index: int
     _alive: bool = field(default=True, init=False)
     _score: int = field(default=0, init=False)
+    _outcome: Outcome = field(default=Outcome.DRAW, init=False)
+    _time: int = field(default=0, init=False)
+    _opponents: list[str] = field(default_factory=list)
 
-    def update(self, score: int, alive: bool) -> None:
+    def update(self, score: int, alive: bool, game_time: int, winner: int) -> None:
         self._score = score
         self._alive = alive
+        self._time = game_time
+        if winner == self.index:
+            self._outcome = Outcome.WIN
+        elif winner:
+            self._outcome = Outcome.LOSS
+        else:
+            self._outcome = Outcome.DRAW
+
+    @property
+    def index(self) -> int:
+        return self._index
 
     @property
     def name(self) -> str:
-        return self.player.name
+        return self._player.name
+
+    @property
+    def civ(self) -> Civilisation:
+        return self._player.civ
 
     @property
     def score(self) -> int:
@@ -310,30 +337,24 @@ class PlayerStats:
     def alive(self) -> bool:
         return self._alive
 
+    @property
+    def outcome(self) -> Outcome:
+        return self._outcome
+
+    @outcome.setter
+    def outcome(self, outcome: Outcome) -> None:
+        self.outcome = outcome
+
     def __str__(self) -> str:
         return (
-            f"Player {self.index} '{self.player.name}' ({self.player.civ})\n"
+            f"Player {self.index} '{self.name}' ({self.civ})\n"
             f"\t\tScore: {self.score}\n"
             f"\t\tAlive: {self.alive}\n"
         )
 
-
-class Outcome(StrEnum):
-    WIN = auto()
-    LOSS = auto()
-    DRAW = auto()
-
-
-@dataclass
-class PlayerResult:
-    outcome: Outcome
-    score: int
-    time: int
-    opponent: str = ""
-
-    def __str__(self) -> str:
-        return f"{self.outcome},{self.time},{self.score}" + (
-            f",{self.opponent}" if self.opponent else ""
+    def write(self, write_opponents: bool = False) -> str:
+        return f"{self.outcome},{self._time},{self.score}" + (
+            f",{self._opponents}" if write_opponents else ""
         )
 
 
@@ -347,13 +368,19 @@ class GameStats:
     def __init__(self, players: dict[int, Player] | None = None) -> None:
         players = players or {}
         self.player_stats = {
-            index: PlayerStats(player, index) for index, player in players.items()
+            index: PlayerStats(
+                player,
+                index,
+                list(
+                    player.name
+                    for opponent_index, player in players.items()
+                    if opponent_index != index
+                ),
+            )
+            for index, player in players.items()
         }
         self.elapsed_game_time = 0
         self.winner = 0
-
-    def update_player(self, index: int, score: int, alive: bool) -> None:
-        self.player_stats[index].update(score=score, alive=alive)
 
     def __bool__(self) -> bool:
         if self.player_stats:
@@ -380,6 +407,15 @@ class GameStats:
         return f"Elapsed Game Time: {self.elapsed_game_time}\n\n" + "".join(
             str(player) for player in self.player_stats.values()
         )
+
+    def outcome_time_limited(
+        self, time_limit: int, win_limit: float = 1
+    ) -> dict[int, PlayerStats]:
+        outcomes = self.player_stats
+        if self.elapsed_game_time >= win_limit * time_limit:
+            for index in outcomes:
+                outcomes[index].outcome = Outcome.DRAW
+        return outcomes
 
 
 class Game:
@@ -559,9 +595,16 @@ class Game:
             if score is not None and alive is not None:
                 assert isinstance(score, int)
                 assert isinstance(alive, bool)
-                player.update(score=score, alive=alive)
+                player.update(
+                    score=score,
+                    alive=alive,
+                    game_time=game_time,
+                    winner=self._stats.winner,
+                )
             else:
-                player.update(score=0, alive=False)
+                player.update(
+                    score=0, alive=False, game_time=game_time, winner=self._stats.winner
+                )
                 if self.debug:
                     print(
                         f"Couldn't get score or alive status for player {player.name}. "
@@ -574,7 +617,9 @@ class Game:
                 f"couldn't be retrieved because of {e}. "
                 "Setting this players' score to 0."
             )
-            player.update(score=0, alive=False)
+            player.update(
+                score=0, alive=False, game_time=game_time, winner=self._stats.winner
+            )
             self.handle_except(e, message)
 
     async def update(self) -> None:
@@ -585,7 +630,6 @@ class Game:
             return
         try:
             game_time = 0
-            self._stats.winner = 0
             try:
                 game_time: int = self._rpc.call("GetGameTime")  # type: ignore
                 self._stats.elapsed_game_time = game_time
@@ -677,14 +721,6 @@ class Game:
         return self._settings.names
 
     @property
-    def stats(self) -> dict[int, PlayerStats]:
-        return self._stats.stats
-
-    @property
-    def player_scores(self) -> dict[str, int]:
-        return self._stats.player_scores
-
-    @property
     def elapsed_game_time(self) -> int:
         return self._stats.elapsed_game_time
 
@@ -692,30 +728,16 @@ class Game:
     def winner(self) -> int:
         return self._stats.winner
 
-    def outcome(
-        self, win_limit: float = 1, list_opponents: bool = False
-    ) -> dict[int, PlayerResult]:
+    @property
+    def outcome(self) -> dict[int, PlayerStats]:
+        return self._stats.player_stats
+
+    def outcome_time_limited(self, win_limit: float = 1) -> dict[int, PlayerStats]:
         if not self._settings:
             return {}
-        return {
-            index: PlayerResult(
-                outcome=Outcome.DRAW
-                if self.winner == 0
-                or self.elapsed_game_time >= win_limit * self._settings.game_time_limit
-                else Outcome.WIN
-                if self.winner == index
-                else Outcome.LOSS,
-                score=result.score,
-                time=self.elapsed_game_time,
-                opponent=",".join(
-                    self._settings.names[: index - 1]
-                    + self._settings.names[index - 1 :]
-                )
-                if list_opponents
-                else "",
-            )
-            for index, result in self.stats.items()
-        }
+        return self._stats.outcome_time_limited(
+            self._settings.game_time_limit, win_limit
+        )
 
     @property
     def is_running(self) -> bool:
