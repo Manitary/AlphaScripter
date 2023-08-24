@@ -248,10 +248,6 @@ class GameSettings:
         self.speed = speed
 
     @property
-    def map_id(self) -> int:
-        return self.map.value
-
-    @property
     def names(self) -> list[str]:
         return [p.name for p in self.players.values()]
 
@@ -533,19 +529,19 @@ class Game:
         try:
             self._settings = settings
             self._rpc.call_async("ResetGameSettings")  # type: ignore
-            self._rpc.call_async("SetGameMapType", settings.map_id)  # type: ignore
-            self._rpc.call_async("SetGameDifficulty", settings.difficulty)  # type: ignore
-            self._rpc.call_async("SetGameRevealMap", settings.reveal_map)  # type: ignore
-            self._rpc.call_async("SetGameMapSize", settings.map_size)  # type: ignore
+            self._rpc.call_async("SetGameMapType", settings.map.value)  # type: ignore
+            self._rpc.call_async("SetGameDifficulty", settings.difficulty.value)  # type: ignore
+            self._rpc.call_async("SetGameRevealMap", settings.reveal_map.value)  # type: ignore
+            self._rpc.call_async("SetGameMapSize", settings.map_size.value)  # type: ignore
             self._rpc.call_async(  # type: ignore
-                "SetGameVictoryType", settings.victory_type, settings.victory_value
+                "SetGameVictoryType", settings.victory_type.value, settings.victory_value
             )
             self._rpc.call_async("SetRunUnfocused", True)  # type: ignore
             self._rpc.call_async("SetRunFullSpeed", settings.speed)  # type: ignore
             # self.call_safe('SetUseInGameResolution', False, game_index=game_index)
             for i, player in settings.players.items():
                 self._rpc.call_async("SetPlayerComputer", i, player.name)  # type: ignore
-                self._rpc.call_async("SetPlayerCivilization", i, player.civ)  # type: ignore
+                self._rpc.call_async("SetPlayerCivilization", i, player.civ.value)  # type: ignore
                 self._rpc.call_async("SetPlayerTeam", i, 0)  # type: ignore
         except BaseException as e:
             message = (
