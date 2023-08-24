@@ -9,7 +9,9 @@ import os
 import signal
 from collections import OrderedDict
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = (
+    r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+)
 
 pyautogui.failsafe = False
 
@@ -17,16 +19,18 @@ pyautogui.failsafe = False
 installation_folder_path = "E:\\SteamLibrary\\steamapps\\common\\AoE2DE"
 
 # The installation folder fallback, which is the most standard installation path.
-installation_folder_path_fallback = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\AoE2DE"
+installation_folder_path_fallback = (
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\AoE2DE"
+)
 
 # The paths to the actual executable and of the AI folder.
 executable_path = "AoE2DE_s.exe"
 ai_path = "resources\\_common\\ai"
 
-#controls for algorithm
+# controls for algorithm
 fails_before_reset = 20
 script_rule_count = 500
-mutation_chance = .05
+mutation_chance = 0.05
 
 # alphabet = 'abcdefghijklmnopqrstuvwxyz'
 # temp = []
@@ -38,26 +42,310 @@ mutation_chance = .05
 # for i in range(300):
 #    alphavalues.append(temp[i])
 
-alphavalues = ['aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq',
-               'ar', 'as', 'at', 'au', 'av', 'aw', 'ax', 'ay', 'az', 'ba', 'bb', 'bc', 'bd', 'be', 'bf', 'bg', 'bh',
-               'bi', 'bj', 'bk', 'bl', 'bm', 'bn', 'bo', 'bp', 'bq', 'br', 'bs', 'bt', 'bu', 'bv', 'bw', 'bx', 'by',
-               'bz', 'ca', 'cb', 'cc', 'cd', 'ce', 'cf', 'cg', 'ch', 'ci', 'cj', 'ck', 'cl', 'cm', 'cn', 'co', 'cp',
-               'cq', 'cr', 'cs', 'ct', 'cu', 'cv', 'cw', 'cx', 'cy', 'cz', 'da', 'db', 'dc', 'dd', 'de', 'df', 'dg',
-               'dh', 'di', 'dj', 'dk', 'dl', 'dm', 'dn', 'do', 'dp', 'dq', 'dr', 'ds', 'dt', 'du', 'dv', 'dw', 'dx',
-               'dy', 'dz', 'ea', 'eb', 'ec', 'ed', 'ee', 'ef', 'eg', 'eh', 'ei', 'ej', 'ek', 'el', 'em', 'en', 'eo',
-               'ep', 'eq', 'er', 'es', 'et', 'eu', 'ev', 'ew', 'ex', 'ey', 'ez', 'fa', 'fb', 'fc', 'fd', 'fe', 'ff',
-               'fg', 'fh', 'fi', 'fj', 'fk', 'fl', 'fm', 'fn', 'fo', 'fp', 'fq', 'fr', 'fs', 'ft', 'fu', 'fv', 'fw',
-               'fx', 'fy', 'fz', 'ga', 'gb', 'gc', 'gd', 'ge', 'gf', 'gg', 'gh', 'gi', 'gj', 'gk', 'gl', 'gm', 'gn',
-               'go', 'gp', 'gq', 'gr', 'gs', 'gt', 'gu', 'gv', 'gw', 'gx', 'gy', 'gz', 'ha', 'hb', 'hc', 'hd', 'he',
-               'hf', 'hg', 'hh', 'hi', 'hj', 'hk', 'hl', 'hm', 'hn', 'ho', 'hp', 'hq', 'hr', 'hs', 'ht', 'hu', 'hv',
-               'hw', 'hx', 'hy', 'hz', 'ia', 'ib', 'ic', 'id', 'ie', 'if', 'ig', 'ih', 'ii', 'ij', 'ik', 'il', 'im',
-               'in', 'io', 'ip', 'iq', 'ir', 'is', 'it', 'iu', 'iv', 'iw', 'ix', 'iy', 'iz', 'ja', 'jb', 'jc', 'jd',
-               'je', 'jf', 'jg', 'jh', 'ji', 'jj', 'jk', 'jl', 'jm', 'jn', 'jo', 'jp', 'jq', 'jr', 'js', 'jt', 'ju',
-               'jv', 'jw', 'jx', 'jy', 'jz', 'ka', 'kb', 'kc', 'kd', 'ke', 'kf', 'kg', 'kh', 'ki', 'kj', 'kk', 'kl',
-               'km', 'kn', 'ko', 'kp', 'kq', 'kr', 'ks', 'kt', 'ku', 'kv', 'kw', 'kx', 'ky', 'kz', 'la', 'lb', 'lc',
-               'ld', 'le', 'lf', 'lg', 'lh', 'li', 'lj', 'lk', 'll', 'lm', 'ln']
+alphavalues = [
+    "aa",
+    "ab",
+    "ac",
+    "ad",
+    "ae",
+    "af",
+    "ag",
+    "ah",
+    "ai",
+    "aj",
+    "ak",
+    "al",
+    "am",
+    "an",
+    "ao",
+    "ap",
+    "aq",
+    "ar",
+    "as",
+    "at",
+    "au",
+    "av",
+    "aw",
+    "ax",
+    "ay",
+    "az",
+    "ba",
+    "bb",
+    "bc",
+    "bd",
+    "be",
+    "bf",
+    "bg",
+    "bh",
+    "bi",
+    "bj",
+    "bk",
+    "bl",
+    "bm",
+    "bn",
+    "bo",
+    "bp",
+    "bq",
+    "br",
+    "bs",
+    "bt",
+    "bu",
+    "bv",
+    "bw",
+    "bx",
+    "by",
+    "bz",
+    "ca",
+    "cb",
+    "cc",
+    "cd",
+    "ce",
+    "cf",
+    "cg",
+    "ch",
+    "ci",
+    "cj",
+    "ck",
+    "cl",
+    "cm",
+    "cn",
+    "co",
+    "cp",
+    "cq",
+    "cr",
+    "cs",
+    "ct",
+    "cu",
+    "cv",
+    "cw",
+    "cx",
+    "cy",
+    "cz",
+    "da",
+    "db",
+    "dc",
+    "dd",
+    "de",
+    "df",
+    "dg",
+    "dh",
+    "di",
+    "dj",
+    "dk",
+    "dl",
+    "dm",
+    "dn",
+    "do",
+    "dp",
+    "dq",
+    "dr",
+    "ds",
+    "dt",
+    "du",
+    "dv",
+    "dw",
+    "dx",
+    "dy",
+    "dz",
+    "ea",
+    "eb",
+    "ec",
+    "ed",
+    "ee",
+    "ef",
+    "eg",
+    "eh",
+    "ei",
+    "ej",
+    "ek",
+    "el",
+    "em",
+    "en",
+    "eo",
+    "ep",
+    "eq",
+    "er",
+    "es",
+    "et",
+    "eu",
+    "ev",
+    "ew",
+    "ex",
+    "ey",
+    "ez",
+    "fa",
+    "fb",
+    "fc",
+    "fd",
+    "fe",
+    "ff",
+    "fg",
+    "fh",
+    "fi",
+    "fj",
+    "fk",
+    "fl",
+    "fm",
+    "fn",
+    "fo",
+    "fp",
+    "fq",
+    "fr",
+    "fs",
+    "ft",
+    "fu",
+    "fv",
+    "fw",
+    "fx",
+    "fy",
+    "fz",
+    "ga",
+    "gb",
+    "gc",
+    "gd",
+    "ge",
+    "gf",
+    "gg",
+    "gh",
+    "gi",
+    "gj",
+    "gk",
+    "gl",
+    "gm",
+    "gn",
+    "go",
+    "gp",
+    "gq",
+    "gr",
+    "gs",
+    "gt",
+    "gu",
+    "gv",
+    "gw",
+    "gx",
+    "gy",
+    "gz",
+    "ha",
+    "hb",
+    "hc",
+    "hd",
+    "he",
+    "hf",
+    "hg",
+    "hh",
+    "hi",
+    "hj",
+    "hk",
+    "hl",
+    "hm",
+    "hn",
+    "ho",
+    "hp",
+    "hq",
+    "hr",
+    "hs",
+    "ht",
+    "hu",
+    "hv",
+    "hw",
+    "hx",
+    "hy",
+    "hz",
+    "ia",
+    "ib",
+    "ic",
+    "id",
+    "ie",
+    "if",
+    "ig",
+    "ih",
+    "ii",
+    "ij",
+    "ik",
+    "il",
+    "im",
+    "in",
+    "io",
+    "ip",
+    "iq",
+    "ir",
+    "is",
+    "it",
+    "iu",
+    "iv",
+    "iw",
+    "ix",
+    "iy",
+    "iz",
+    "ja",
+    "jb",
+    "jc",
+    "jd",
+    "je",
+    "jf",
+    "jg",
+    "jh",
+    "ji",
+    "jj",
+    "jk",
+    "jl",
+    "jm",
+    "jn",
+    "jo",
+    "jp",
+    "jq",
+    "jr",
+    "js",
+    "jt",
+    "ju",
+    "jv",
+    "jw",
+    "jx",
+    "jy",
+    "jz",
+    "ka",
+    "kb",
+    "kc",
+    "kd",
+    "ke",
+    "kf",
+    "kg",
+    "kh",
+    "ki",
+    "kj",
+    "kk",
+    "kl",
+    "km",
+    "kn",
+    "ko",
+    "kp",
+    "kq",
+    "kr",
+    "ks",
+    "kt",
+    "ku",
+    "kv",
+    "kw",
+    "kx",
+    "ky",
+    "kz",
+    "la",
+    "lb",
+    "lc",
+    "ld",
+    "le",
+    "lf",
+    "lg",
+    "lh",
+    "li",
+    "lj",
+    "lk",
+    "ll",
+    "lm",
+    "ln",
+]
 
-ai_names = ['Alpha', 'Beta', 'c', 'd', 'e', 'f', 'g', 'h']
+ai_names = ["Alpha", "Beta", "c", "d", "e", "f", "g", "h"]
 
 # read pre parsed actions
 f = open("actions.txt", "r")
@@ -77,14 +365,18 @@ def check_installation_directory():
     if os.path.isdir(installation_folder_path):
         print(f"Installation folder is valid.")
     else:
-        print(f"Warning! Custom installation folder '{installation_folder_path}' is invalid."
-              f" Trying to fall back on fallback installation path...")
+        print(
+            f"Warning! Custom installation folder '{installation_folder_path}' is invalid."
+            f" Trying to fall back on fallback installation path..."
+        )
 
         if os.path.isdir(installation_folder_path_fallback):
             installation_folder_path = installation_folder_path_fallback
         else:
-            print(f"Warning! Fall back installation folder '{installation_folder_path_fallback}' is invalid. "
-                  f"Quitting the program...")
+            print(
+                f"Warning! Fall back installation folder '{installation_folder_path_fallback}' is invalid. "
+                f"Quitting the program..."
+            )
             quit()
 
     global executable_path, ai_path
@@ -92,13 +384,17 @@ def check_installation_directory():
     ai_path = installation_folder_path + "\\" + ai_path
 
     if not os.path.isfile(executable_path):
-        print(f"Warning! Executable not found at location '{executable_path}'."
-              f"Please correct the installation path in the code. Quitting the program...")
+        print(
+            f"Warning! Executable not found at location '{executable_path}'."
+            f"Please correct the installation path in the code. Quitting the program..."
+        )
         quit()
 
     if not os.path.isdir(ai_path):
-        print(f"AI folder not found at location {ai_path}."
-              f"Please correct the installation path in the code. Quitting the program...")
+        print(
+            f"AI folder not found at location {ai_path}."
+            f"Please correct the installation path in the code. Quitting the program..."
+        )
         quit()
 
 
@@ -113,13 +409,15 @@ def clear_ais():
 
     hd_ai_path = ai_path + "\\HD.per"
     if os.path.isfile(hd_ai_path):
-        with open(hd_ai_path, 'r') as hd_ai_file:
+        with open(hd_ai_path, "r") as hd_ai_file:
             hd_ai_contents = hd_ai_file.read()
 
     else:
-        raise Exception(f"Clearing AI's failed. This can have 2 reasons. Either the path '{ai_path}' does not exist"
-                        f" or the 'AI (HD version).per' file needs to be duplicated and the duplicate renamed to "
-                        f"'HD.per'.")
+        raise Exception(
+            f"Clearing AI's failed. This can have 2 reasons. Either the path '{ai_path}' does not exist"
+            f" or the 'AI (HD version).per' file needs to be duplicated and the duplicate renamed to "
+            f"'HD.per'."
+        )
 
     clear_ai("Alpha", hd_ai_contents)
     clear_ai("Beta", hd_ai_contents)
@@ -139,10 +437,12 @@ def clear_ai(name: str, clear_value: str = ""):
     ai_file_path = ai_path + "\\" + name + ".ai"
 
     if not os.path.isfile(full_path) or not os.path.isfile(ai_file_path):
-        print(f"Warning! From AI '{name}' could either the .per or the .ai not be found. These files will be created.")
-        open(ai_file_path, 'x')
+        print(
+            f"Warning! From AI '{name}' could either the .per or the .ai not be found. These files will be created."
+        )
+        open(ai_file_path, "x")
 
-    with open(full_path, 'w+') as file:
+    with open(full_path, "w+") as file:
         file.write(clear_value)
 
 
@@ -212,7 +512,7 @@ def crossover(rule1, rule2, alpha1, alpha2):
     rules_out = []
     for i in range(len(rule1)):
 
-        if random.random() < .5:
+        if random.random() < 0.5:
             if random.random() < mutation_chance:
                 rules_out.append(random.choice(rule1))
             else:
@@ -226,7 +526,7 @@ def crossover(rule1, rule2, alpha1, alpha2):
     alphas_out = []
     for i in range(len(alpha1)):
 
-        if random.random() < .5:
+        if random.random() < 0.5:
             if random.random() < mutation_chance:
                 alphas_out.append(random.choice(alpha1))
             else:
@@ -259,17 +559,48 @@ def read_best():
     for i in range(len(file_rules)):
         if file_rules[i] != "":
             local_rule = file_rules[i].split(",")
-            local_conditions = [local_rule[0], local_rule[1], local_rule[2], local_rule[3], local_rule[4]]
-            local_actions = [local_rule[5], local_rule[6], local_rule[7], local_rule[8], local_rule[9]]
-            local_alphas = [local_rule[10], local_rule[11], local_rule[12], local_rule[13], local_rule[14],
-                            local_rule[15], local_rule[16], local_rule[17], local_rule[18], local_rule[19]]
+            local_conditions = [
+                local_rule[0],
+                local_rule[1],
+                local_rule[2],
+                local_rule[3],
+                local_rule[4],
+            ]
+            local_actions = [
+                local_rule[5],
+                local_rule[6],
+                local_rule[7],
+                local_rule[8],
+                local_rule[9],
+            ]
+            local_alphas = [
+                local_rule[10],
+                local_rule[11],
+                local_rule[12],
+                local_rule[13],
+                local_rule[14],
+                local_rule[15],
+                local_rule[16],
+                local_rule[17],
+                local_rule[18],
+                local_rule[19],
+            ]
             if_and = int(local_rule[20])
             action_length = int(local_rule[21])
             condition_length = int(local_rule[22])
             age_required = int(local_rule[23])
             # print(local_rule)
 
-            rules_out.append([local_conditions, local_actions, local_alphas, if_and, action_length, condition_length])
+            rules_out.append(
+                [
+                    local_conditions,
+                    local_actions,
+                    local_alphas,
+                    if_and,
+                    action_length,
+                    condition_length,
+                ]
+            )
 
     return rules_out, constants_out
 
@@ -387,7 +718,7 @@ def end_game():
             return True
 
         try:
-            x, y = pyautogui.locateCenterOnScreen('leave.png', confidence=0.9)
+            x, y = pyautogui.locateCenterOnScreen("leave.png", confidence=0.9)
             pyautogui.click(x, y)
             game_ended = True
             return False
@@ -406,20 +737,48 @@ def generate_rules(count):
     rules = []
 
     for i in range(count):
-        conditions1 = [random.choice(conditions), random.choice(conditions), random.choice(conditions),
-                       random.choice(conditions), random.choice(conditions)]
-        actions1 = [random.choice(actions), random.choice(actions), random.choice(actions), random.choice(actions),
-                    random.choice(actions)]
-        alphavalues1 = [random.choice(alphavalues), random.choice(alphavalues), random.choice(alphavalues),
-                        random.choice(alphavalues), random.choice(alphavalues), random.choice(alphavalues),
-                        random.choice(alphavalues), random.choice(alphavalues), random.choice(alphavalues),
-                        random.choice(alphavalues)]
+        conditions1 = [
+            random.choice(conditions),
+            random.choice(conditions),
+            random.choice(conditions),
+            random.choice(conditions),
+            random.choice(conditions),
+        ]
+        actions1 = [
+            random.choice(actions),
+            random.choice(actions),
+            random.choice(actions),
+            random.choice(actions),
+            random.choice(actions),
+        ]
+        alphavalues1 = [
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+            random.choice(alphavalues),
+        ]
         if_and = random.randint(1, 3)
         action_length = random.randint(1, 5)
         condition_length = random.randint(1, 5)
         age_required = random.randint(0, 3)
 
-        rules.append([conditions1, actions1, alphavalues1, if_and, action_length, condition_length, age_required])
+        rules.append(
+            [
+                conditions1,
+                actions1,
+                alphavalues1,
+                if_and,
+                action_length,
+                condition_length,
+                age_required,
+            ]
+        )
 
         # print(conditions1)
     return rules
@@ -458,7 +817,17 @@ def mutate_rules(list):
         if random.random() < mutation_chance:
             age_required = random.randint(0, 3)
 
-        rules1.append([conditions1, actions1, alphavalues1, if_and, action_length, condition_length, age_required])
+        rules1.append(
+            [
+                conditions1,
+                actions1,
+                alphavalues1,
+                if_and,
+                action_length,
+                condition_length,
+                age_required,
+            ]
+        )
 
     return rules1
 
@@ -491,9 +860,9 @@ def score_grab(y, bonus):
     eco = pyautogui.screenshot(region=(940, y, 100, 50))
     society = pyautogui.screenshot("try.png", region=(1132, y, 100, 50))
 
-    eco_score = clean(pytesseract.image_to_string(eco)) #** .7
-    military_score = clean(pytesseract.image_to_string(military)) #** .7
-    society_score = clean(pytesseract.image_to_string(society)) #** .7
+    eco_score = clean(pytesseract.image_to_string(eco))  # ** .7
+    military_score = clean(pytesseract.image_to_string(military))  # ** .7
+    society_score = clean(pytesseract.image_to_string(society))  # ** .7
 
     tscore = military_score + eco_score + society_score + bonus
 
@@ -544,17 +913,16 @@ def write_rules(list):
         condition_length = list[i][5]
         age_required = list[i][6]
 
-
-        load_if_value = ["",""]
+        load_if_value = ["", ""]
 
         if age_required == 1:
-            load_if_value = ["#load-if-not-defined DARK-AGE-END\n","#end-if\n"]
+            load_if_value = ["#load-if-not-defined DARK-AGE-END\n", "#end-if\n"]
 
         elif age_required == 2:
-            load_if_value = ["#load-if-not-defined FEUDAL-AGE-END\n","#end-if\n"]
+            load_if_value = ["#load-if-not-defined FEUDAL-AGE-END\n", "#end-if\n"]
 
         elif age_required == 3:
-            load_if_value = ["#load-if-not-defined CASTLE-AGE-END\n","#end-if\n"]
+            load_if_value = ["#load-if-not-defined CASTLE-AGE-END\n", "#end-if\n"]
 
         string += load_if_value[0] + "(defrule\n"
         if_and_value = ["", ""]
@@ -571,7 +939,11 @@ def write_rules(list):
                 if_and_value[1] = ")"
 
         for i in range(condition_length):
-            string += if_and_value[0] + conditions1[i].replace("AlphaMorphValue", alphavalues1[i]) + "\n"
+            string += (
+                if_and_value[0]
+                + conditions1[i].replace("AlphaMorphValue", alphavalues1[i])
+                + "\n"
+            )
 
         string += if_and_value[1] + "\n=>\n"
 
@@ -589,7 +961,7 @@ def mutate_constants(list):
     list2 = list.copy()
     for i in range(len(list2)):
 
-        if random.random() < .01:
+        if random.random() < 0.01:
             list2[i] = random.randint(0, 200)
 
         elif random.random() < mutation_chance:
@@ -608,7 +980,9 @@ def write_ai(list, rules, name: str, to_ai_folder: bool = True):
     full_path = ai_path + "\\" + name + ".per" if to_ai_folder else name + ".per"
 
     if not os.path.isfile(full_path):
-        print(f"AI file {full_path} cannot be found for writing. This file will therefore be created.")
+        print(
+            f"AI file {full_path} cannot be found for writing. This file will therefore be created."
+        )
 
     with open(full_path, "w+") as ai_file:
         ai_file.write(static_code() + "\n\n\n")
@@ -617,6 +991,7 @@ def write_ai(list, rules, name: str, to_ai_folder: bool = True):
         ai_file.write(write_rules(rules))
         ai_file.write("\n\n\n")
 
+
 def generate_script(length):
 
     print("generating new script")
@@ -624,6 +999,7 @@ def generate_script(length):
     rulesParent = generate_rules(length)
 
     return rulesParent, genesParent
+
 
 def run_vs(genesParent, rulesParent):
     global mutation_chance
@@ -665,7 +1041,7 @@ def run_vs(genesParent, rulesParent):
 
             # finds winner based on crown location in end screen and gives bonus
             try:
-                x, y = pyautogui.locateCenterOnScreen('won.PNG', confidence=0.8)
+                x, y = pyautogui.locateCenterOnScreen("won.PNG", confidence=0.8)
             except (pyautogui.ImageNotFoundException, TypeError):
                 y = 0
                 print("could not find crown")
@@ -696,7 +1072,7 @@ def run_vs(genesParent, rulesParent):
 
             else:
                 fails = 0
-                mutation_chance = .05
+                mutation_chance = 0.05
                 winner = alphaDNA.copy()
                 winnerRules = alphaRules.copy()
                 print("alpha won by score: " + str(alpha_score))
@@ -731,7 +1107,9 @@ def run_score(genesParent, rulesParent):
 
         try:
 
-            crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+            crossed_rules, crossed_genes = crossover(
+                rulesParent, second_placeRules, genesParent, second_place
+            )
 
             alphaDNA = mutate_constants(crossed_genes)
             alphaRules = mutate_rules(crossed_rules)
@@ -748,7 +1126,9 @@ def run_score(genesParent, rulesParent):
                     start_game("bar.png")
                     timed_out = end_game()
 
-                crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+                crossed_rules, crossed_genes = crossover(
+                    rulesParent, second_placeRules, genesParent, second_place
+                )
                 alphaDNA = mutate_constants(crossed_genes)
                 alphaRules = mutate_rules(crossed_rules)
                 write_ai(alphaDNA, alphaRules, "Alpha")
@@ -760,7 +1140,7 @@ def run_score(genesParent, rulesParent):
 
             if score > best:
                 fails = 0
-                mutation_chance = .05
+                mutation_chance = 0.05
                 best = score
                 print("new best: " + str(score))
                 write_ai(alphaDNA, alphaRules, "Best")
@@ -804,31 +1184,45 @@ def run_ffa(genesParent, rulesParent, load):
 
             # refector later
             # alphaDNA = genesParent.copy()
-            crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+            crossed_rules, crossed_genes = crossover(
+                rulesParent, second_placeRules, genesParent, second_place
+            )
             alphaDNA = mutate_constants(crossed_genes)
             alphaRules = mutate_rules(crossed_rules)
 
-            crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+            crossed_rules, crossed_genes = crossover(
+                rulesParent, second_placeRules, genesParent, second_place
+            )
             cDNA = mutate_constants(crossed_genes)
             cRules = mutate_rules(crossed_rules)
 
-            crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+            crossed_rules, crossed_genes = crossover(
+                rulesParent, second_placeRules, genesParent, second_place
+            )
             dDNA = mutate_constants(crossed_genes)
             dRules = mutate_rules(crossed_rules)
 
-            crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+            crossed_rules, crossed_genes = crossover(
+                rulesParent, second_placeRules, genesParent, second_place
+            )
             eDNA = mutate_constants(crossed_genes)
             eRules = mutate_rules(crossed_rules)
 
-            crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+            crossed_rules, crossed_genes = crossover(
+                rulesParent, second_placeRules, genesParent, second_place
+            )
             fDNA = mutate_constants(crossed_genes)
             fRules = mutate_rules(crossed_rules)
 
-            crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+            crossed_rules, crossed_genes = crossover(
+                rulesParent, second_placeRules, genesParent, second_place
+            )
             gDNA = mutate_constants(crossed_genes)
             gRules = mutate_rules(crossed_rules)
 
-            crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+            crossed_rules, crossed_genes = crossover(
+                rulesParent, second_placeRules, genesParent, second_place
+            )
             hDNA = mutate_constants(crossed_genes)
             hRules = mutate_rules(crossed_rules)
 
@@ -860,31 +1254,45 @@ def run_ffa(genesParent, rulesParent, load):
                     if generation == 1:
                         rulesParent, genesParent = generate_script(script_rule_count)
 
-                    crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+                    crossed_rules, crossed_genes = crossover(
+                        rulesParent, second_placeRules, genesParent, second_place
+                    )
                     alphaDNA = mutate_constants(crossed_genes)
                     alphaRules = mutate_rules(crossed_rules)
 
-                    crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+                    crossed_rules, crossed_genes = crossover(
+                        rulesParent, second_placeRules, genesParent, second_place
+                    )
                     cDNA = mutate_constants(crossed_genes)
                     cRules = mutate_rules(crossed_rules)
 
-                    crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+                    crossed_rules, crossed_genes = crossover(
+                        rulesParent, second_placeRules, genesParent, second_place
+                    )
                     dDNA = mutate_constants(crossed_genes)
                     dRules = mutate_rules(crossed_rules)
 
-                    crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+                    crossed_rules, crossed_genes = crossover(
+                        rulesParent, second_placeRules, genesParent, second_place
+                    )
                     eDNA = mutate_constants(crossed_genes)
                     eRules = mutate_rules(crossed_rules)
 
-                    crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+                    crossed_rules, crossed_genes = crossover(
+                        rulesParent, second_placeRules, genesParent, second_place
+                    )
                     fDNA = mutate_constants(crossed_genes)
                     fRules = mutate_rules(crossed_rules)
 
-                    crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+                    crossed_rules, crossed_genes = crossover(
+                        rulesParent, second_placeRules, genesParent, second_place
+                    )
                     gDNA = mutate_constants(crossed_genes)
                     gRules = mutate_rules(crossed_rules)
 
-                    crossed_rules, crossed_genes = crossover(rulesParent, second_placeRules, genesParent, second_place)
+                    crossed_rules, crossed_genes = crossover(
+                        rulesParent, second_placeRules, genesParent, second_place
+                    )
                     hDNA = mutate_constants(crossed_genes)
                     hRules = mutate_rules(crossed_rules)
 
@@ -922,7 +1330,16 @@ def run_ffa(genesParent, rulesParent, load):
             g_score += age_grab(587)
             h_score += age_grab(637)
 
-            score_list = [alpha_score, beta_score, c_score, d_score, e_score, f_score, g_score, h_score]
+            score_list = [
+                alpha_score,
+                beta_score,
+                c_score,
+                d_score,
+                e_score,
+                f_score,
+                g_score,
+                h_score,
+            ]
 
             score_list = sorted(score_list, reverse=True)
 
@@ -932,7 +1349,7 @@ def run_ffa(genesParent, rulesParent, load):
                 mutation_chance += fails / 1000
             else:
                 fails = 0
-                mutation_chance = .05
+                mutation_chance = 0.05
 
             failed = False
 
@@ -1028,7 +1445,7 @@ def run_ffa(genesParent, rulesParent, load):
             write_ai(winner, winnerRules, "best", to_ai_folder=False)
             save_ai(winnerRules, winner, "best")
 
-            #restarts after 10 fails
+            # restarts after 10 fails
             if fails > fails_before_reset:
                 print("fail threshold exceeded, reseting...")
                 write_ai(winner, winnerRules, str(max(score_list)), to_ai_folder=False)
@@ -1044,7 +1461,7 @@ def run_ffa(genesParent, rulesParent, load):
 check_installation_directory()
 
 rulesParent, genesParent = generate_script(script_rule_count)
-#rulesParent, genesParent = read_best()
+# rulesParent, genesParent = read_best()
 
 # run_vs(genesParent, rulesParent)
 # run_score(genesParent, rulesParent)
