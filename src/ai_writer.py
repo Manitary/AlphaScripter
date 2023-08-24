@@ -1,7 +1,7 @@
 import tkinter as tk
 
 from main import backup
-from src.models import AI
+from src.ai import AI
 
 
 def write_from_csv(file: str) -> None:

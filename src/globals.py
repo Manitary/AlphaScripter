@@ -1,3 +1,6 @@
+from src.config import CONFIG
+
+
 OLD_PARAMETERS = {
     # ! Duplicate keys: EventType
     "ActionId": "-1;600;601;602;603;604;605;606;607;608;609;610;611;612;613;614;615;616;617;618;619;620;621;631",
@@ -812,3 +815,9 @@ GOAL_FACTS = [
 SIMPLE_COMPARE = [">", "<", "==", "!=", "<=", ">="]
 
 PLAYER_LIST = CLASS_LIST + BUILDABLE + TRAINABLE
+
+with open("resign.txt", "r", encoding="utf-8") as r:
+    RESIGN_RULE = r.read()
+
+if CONFIG.allow_towers:
+    PARAMETERS["Buildable"] += ";watch-tower;guard-tower;keep"

@@ -7,7 +7,7 @@ from typing import Any, Sequence
 
 from elosports.elo import Elo
 
-from src.functions import crossover
+from src.ai import AI, crossover
 from src.game_launcher import (
     Civilisation,
     GameSettings,
@@ -16,7 +16,6 @@ from src.game_launcher import (
     Outcome,
     PlayerStats,
 )
-from src.models import AI
 from src.config import CONFIG
 
 AI_NAMES = ("parent", "b", "c", "d", "e", "f", "g", "h")
@@ -40,6 +39,7 @@ def set_annealing(
         mutation_chance - fails / (1000 * anneal_amount),
         0.001,
     )
+
 
 def create_seeds(
     threshold: int,
