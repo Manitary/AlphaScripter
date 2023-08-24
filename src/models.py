@@ -1,12 +1,14 @@
 import copy
 import itertools
-import json
 import random
 import re
 from abc import ABC, abstractmethod
 from collections import UserDict
 from dataclasses import dataclass, field
-from typing import Self
+from typing import Any, Self
+
+import yaml
+from yamlable import YamlAble, yaml_info
 
 from src.config import CONFIG
 from src.globals import (
@@ -29,7 +31,7 @@ with open("resign.txt", "r", encoding="utf-8") as r:
     RESIGN_RULE = r.read()
 
 
-class Mutable(ABC):
+class Mutable(ABC, YamlAble):
     @classmethod
     @abstractmethod
     def generate(cls) -> Self:
@@ -40,7 +42,12 @@ class Mutable(ABC):
         ...
 
 
-class Parameters(Mutable, UserDict[str, str | int]):
+@yaml_info(yaml_tag="Parameters")
+class Parameters(UserDict[str, str | int], Mutable):
+    @classmethod
+    def __from_yaml_dict__(cls, dct: dict[str, Any], yaml_tag: str) -> Self:
+        return cls(dct["data"])
+
     @classmethod
     def generate(cls) -> Self:
         out: dict[str, str | int] = {}
@@ -64,8 +71,9 @@ class Parameters(Mutable, UserDict[str, str | int]):
         return Parameters(out)
 
 
+@yaml_info(yaml_tag="GoalFact")
 @dataclass
-class GoalFact:
+class GoalFact(YamlAble):
     fact_name: str
     parameters: Parameters
 
@@ -82,6 +90,7 @@ class GoalFact:
         )
 
 
+@yaml_info(yaml_tag="Goal")
 @dataclass
 class Goal(Mutable):
     goal_id: int
@@ -170,6 +179,7 @@ class Goal(Mutable):
         return goal
 
 
+@yaml_info(yaml_tag="Fact")
 @dataclass
 class Fact(Mutable):
     fact_name: str
@@ -206,7 +216,12 @@ class Fact(Mutable):
         return fact
 
 
-class StrategicNumbers(Mutable, UserDict[str, str | int]):
+@yaml_info(yaml_tag="SN")
+class StrategicNumbers(UserDict[str, str | int], Mutable):
+    @classmethod
+    def __from_yaml_dict__(cls, dct: dict[str, Any], yaml_tag: str) -> Self:
+        return cls(dct["data"])
+
     @classmethod
     def generate(cls) -> Self:
         out: dict[str, str | int] = {}
@@ -230,6 +245,7 @@ class StrategicNumbers(Mutable, UserDict[str, str | int]):
         return StrategicNumbers(out)
 
 
+@yaml_info(yaml_tag="Action")
 @dataclass
 class Action(Mutable):
     action_name: str
@@ -278,6 +294,7 @@ def _write_actions(actions: list[Action]) -> str:
     return "....\n" + "\n".join(f"({action})" for action in actions)
 
 
+@yaml_info(yaml_tag="ComplexRule")
 @dataclass
 class ComplexRule(Mutable):
     fact_length: int
@@ -383,6 +400,7 @@ TYPE_PARAM = {
 }
 
 
+@yaml_info(yaml_tag="SimpleRule")
 @dataclass
 class SimpleRule(Mutable):
     type: str
@@ -730,8 +748,9 @@ class SimpleRule(Mutable):
         return rule
 
 
+@yaml_info(yaml_tag="Population")
 @dataclass
-class PopulationCondition:
+class PopulationCondition(YamlAble):
     type: str
     comparison: str
     amount: int
@@ -764,8 +783,9 @@ class PopulationCondition:
         return f"{self.type},{self.comparison},{self.amount}"
 
 
+@yaml_info(yaml_tag="GameTime")
 @dataclass
-class GameTimeCondition:
+class GameTimeCondition(YamlAble):
     comparison: str
     amount: int
 
@@ -788,6 +808,7 @@ class GameTimeCondition:
         return f"{self.comparison},{self.amount}"
 
 
+@yaml_info(yaml_tag="AttackRule")
 @dataclass
 class AttackRule(Mutable):
     type: str
@@ -996,8 +1017,9 @@ class AttackRule(Mutable):
         )
 
 
+@yaml_info(yaml_tag="Filter")
 @dataclass
-class Filter:
+class Filter(YamlAble):
     object: int
     compare: str
     value: int
@@ -1017,6 +1039,7 @@ class Filter:
         return f"{self.object};{self.compare};{self.value}"
 
 
+@yaml_info(yaml_tag="DUCSearch")
 @dataclass
 class DUCSearch(Mutable):
     self_selected: str
@@ -1146,6 +1169,7 @@ class DUCSearch(Mutable):
         return search
 
 
+@yaml_info(yaml_tag="DUCTarget")
 @dataclass
 class DUCTarget(Mutable):
     selected: str
@@ -1329,6 +1353,7 @@ class DUCTarget(Mutable):
         return target
 
 
+@yaml_info(yaml_tag="GoalAction")
 @dataclass
 class GoalAction(Mutable):
     goals: list[int]
@@ -1413,6 +1438,7 @@ class GoalAction(Mutable):
         return goal_action
 
 
+@yaml_info(yaml_tag="AI")
 @dataclass
 class AI(Mutable):
     simples: list[SimpleRule] = field(default_factory=list)
@@ -1652,15 +1678,12 @@ class AI(Mutable):
                     f.write(rule.write())
 
     def save_to_file(self, file_name: str) -> None:
-        # ! make AI objects exportable in JSON format
-        temp = {"lazy": json.dumps(self, default=vars)}
+        """Save as YAML file"""
         saved = False
         while not saved:
             try:
-                with open(
-                    "AI/" + file_name + ".txt", "w+", encoding="utf-8"
-                ) as outfile:
-                    json.dump(temp, outfile)
+                with open(f"AI/{file_name}.yaml", "w", encoding="utf-8") as f:
+                    f.write(yaml.dump(self))
             except KeyboardInterrupt:
                 print("saving!")
                 saved = False
@@ -1669,10 +1692,8 @@ class AI(Mutable):
 
     @classmethod
     def from_file(cls, file_name: str) -> Self:
-        # ! make AI objects exportable in JSON format
-        with open("AI/" + file_name + ".txt", encoding="utf-8") as json_file:
-            data = json.load(json_file)
-        return AI(**json.loads(data["lazy"]))
+        """Import from YAML file"""
+        return cls.load_yaml(f"AI/{file_name}.yaml")
 
     def to_csv(self) -> str:
         ans = ""
